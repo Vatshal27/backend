@@ -1,66 +1,209 @@
 const express = require('express');
+const cors = require('cors');
+const axios = require('axios');
+
 const app = express();
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
 
-app.use(express.json());
+const OLLAMA_URL = 'http://localhost:11434/api/generate';
+const MODEL = 'phi3:mini';
 
-// MAIN API
-app.post('/analyze', (req, res) => {
-    const { code } = req.body;
+// phi3:mini context window is ~4096 tokens (~3000 words).
+// We cap each file and the total prompt so Ollama never gets a 413.
+const MAX_CHARS_PER_FILE = 800;   // ~200 tokens per file
+const MAX_TOTAL_CHARS    = 6000;  // total code block sent to model
+const MAX_FILES          = 10;    // scan at most 10 files per batch
 
-    let vulnerabilities = [];
+// ─── Build the security analysis prompt ──────────────────────────────────────
 
-    // 🔴 SQL Injection
-    if (code.includes("SELECT") && code.includes("+")) {
-        vulnerabilities.push({
-            type: "SQL Injection",
-            severity: "High",
-            explanation: "User input is directly concatenated into SQL query.",
-            fix: "Use parameterized queries instead of string concatenation.",
-            simulation: [
-                "User enters: ' OR 1=1 --",
-                "Query becomes always TRUE",
-                "Authentication is bypassed",
-                "Attacker gains access to all data"
-            ]
-        });
-    }
+function buildPrompt(files) {
+  // If caller sends a single code string (old format), wrap it
+  const fileList = Array.isArray(files)
+    ? files
+    : [{ path: 'file.js', code: files }];
 
-    // 🔐 Hardcoded Secret
-    if (code.includes("API_KEY") || code.includes("SECRET") || code.includes("password")) {
-        vulnerabilities.push({
-            type: "Hardcoded Secret",
-            severity: "High",
-            explanation: "Sensitive credentials are stored directly in code.",
-            fix: "Move secrets to environment variables or secure vaults.",
-            simulation: [
-                "Attacker accesses source code",
-                "Finds hardcoded credentials",
-                "Uses them to access system or API",
-                "System is compromised without hacking"
-            ]
-        });
-    }
+  // Take only the most relevant files (skip tiny config/lock files)
+  const filtered = fileList
+    .filter(f => f.code && f.code.trim().length > 30)
+    .slice(0, MAX_FILES);
 
-    // 💣 Command Injection
-    if (code.includes("os.system") || code.includes("exec(")) {
-        vulnerabilities.push({
-            type: "Command Injection",
-            severity: "High",
-            explanation: "User input is passed to system commands without validation.",
-            fix: "Sanitize input and avoid direct shell execution.",
-            simulation: [
-                "User inputs malicious command",
-                "System executes injected command",
-                "Attacker gains system-level access",
-                "Files or system can be modified/deleted"
-            ]
-        });
-    }
+  // Truncate each file and stop adding once we hit the total cap
+  let totalChars = 0;
+  const chunks = [];
+  for (const f of filtered) {
+    if (totalChars >= MAX_TOTAL_CHARS) break;
+    const snippet = f.code.slice(0, MAX_CHARS_PER_FILE);
+    chunks.push(`FILE: ${f.path}\n---\n${snippet}\n`);
+    totalChars += snippet.length;
+  }
 
-    res.json({ vulnerabilities });
+  const projectSummary = chunks.join('\n');
+
+  return `You are a senior application security engineer doing a full project audit.
+
+Analyse the code below as a WHOLE PROJECT — not file by file. Trace data flow across files.
+Look for vulnerabilities based on:
+- What the code is TRYING to do (intent)
+- HOW it is structured (patterns, architecture)
+- What security controls are MISSING (not just what is wrong)
+- Cross-file data flows (e.g. unsanitised input in fileA passed to DB query in fileB)
+
+Examples of what to catch:
+- Database connected but no prepared statements anywhere in project
+- User input taken in route handler but never validated before use
+- Passwords or secrets stored in plain text or hardcoded in code
+- No authentication check before sensitive operations
+- CORS set to wildcard, cookies with no httpOnly/secure flags
+- eval(), exec(), child_process with user-controlled input
+- File uploads with no type or size validation
+- Missing rate limiting on login or sensitive endpoints
+- API keys or tokens committed directly in source
+
+For EACH vulnerability found, return a JSON object.
+Return ONLY a raw JSON array — no markdown, no backticks, no explanation outside the JSON.
+
+Format:
+[
+  {
+    "id": "unique-short-id",
+    "type": "Vulnerability type name",
+    "severity": "High" or "Medium" or "Low",
+    "file": "filename where the root cause is",
+    "line": "approximate line number or function name",
+    "explanation": "Plain English: why this is dangerous and exactly how it works in THIS code",
+    "attackStory": [
+      "Step 1: what attacker does first",
+      "Step 2: what happens next",
+      "Step 3: what data or damage results"
+    ],
+    "fix": "Exact code change or pattern needed to fix this"
+  }
+]
+
+If no vulnerabilities found, return [].
+
+PROJECT CODE:
+${projectSummary}`;
+}
+
+// ─── Call Ollama and stream response back ────────────────────────────────────
+
+async function analyseWithOllama(prompt) {
+  let fullResponse = '';
+
+  const response = await axios.post(
+    OLLAMA_URL,
+    {
+      model: MODEL,
+      prompt,
+      stream: true,
+      options: {
+        temperature: 0.1,  // low = consistent, not creative
+        num_predict: 2048,
+      },
+    },
+    { responseType: 'stream' }
+  );
+
+  return new Promise((resolve, reject) => {
+    response.data.on('data', (chunk) => {
+      try {
+        const lines = chunk.toString().split('\n').filter(Boolean);
+        for (const line of lines) {
+          const parsed = JSON.parse(line);
+          if (parsed.response) fullResponse += parsed.response;
+          if (parsed.done) resolve(fullResponse);
+        }
+      } catch {
+        // partial chunk — keep accumulating
+      }
+    });
+    response.data.on('error', reject);
+  });
+}
+
+// ─── Parse JSON findings out of raw LLM output ───────────────────────────────
+
+function parseFindings(raw) {
+  try {
+    // Strip markdown fences phi3 sometimes adds
+    const cleaned = raw
+      .replace(/```json/gi, '')
+      .replace(/```/g, '')
+      .trim();
+
+    // Find the array even if model adds preamble text before it
+    const start = cleaned.indexOf('[');
+    const end = cleaned.lastIndexOf(']');
+    if (start === -1 || end === -1) return [];
+
+    const parsed = JSON.parse(cleaned.slice(start, end + 1));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+// ─── Routes ───────────────────────────────────────────────────────────────────
+
+// NEW: whole-project scan (called by VS Code extension)
+// Expects: { files: [{ path, code }, ...] }
+app.post('/analyze-project', async (req, res) => {
+  const { files } = req.body;
+
+  if (!files || files.length === 0) {
+    return res.status(400).json({ error: 'No files provided' });
+  }
+
+  console.log(`[server] Scanning ${files.length} file(s) with ${MODEL}...`);
+
+  try {
+    const prompt = buildPrompt(files);
+    const raw = await analyseWithOllama(prompt);
+    const findings = parseFindings(raw);
+
+    console.log(`[server] Found ${findings.length} vulnerability/vulnerabilities`);
+    return res.json({ findings, model: MODEL, filesScanned: files.length });
+  } catch (err) {
+    console.error('[server] Ollama error:', err.message);
+    return res.status(500).json({ error: 'Analysis failed', detail: err.message });
+  }
 });
 
-// START SERVER
+// LEGACY: single code string (keeps your old /analyze working too)
+// Expects: { code: "..." }
+app.post('/analyze', async (req, res) => {
+  const { code } = req.body;
+
+  if (!code) {
+    return res.status(400).json({ error: 'No code provided' });
+  }
+
+  console.log(`[server] Single-file scan with ${MODEL}...`);
+
+  try {
+    const prompt = buildPrompt(code); // buildPrompt handles string too
+    const raw = await analyseWithOllama(prompt);
+    const vulnerabilities = parseFindings(raw);
+
+    // Return in your original format so nothing breaks
+    return res.json({ vulnerabilities });
+  } catch (err) {
+    console.error('[server] Ollama error:', err.message);
+    return res.status(500).json({ error: 'Analysis failed', detail: err.message });
+  }
+});
+
+// Health check — VS Code extension calls this on startup
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', model: MODEL });
+});
+
+// ─── Start ────────────────────────────────────────────────────────────────────
+
 app.listen(3000, () => {
-    console.log("Backend running on http://localhost:3000");
+  console.log('[server] Security analysis server → http://localhost:3000');
+  console.log(`[server] Model: ${MODEL}`);
+  console.log('[server] Make sure Ollama is running: ollama serve');
 });
