@@ -9,26 +9,21 @@ app.use(express.json({ limit: '10mb' }));
 const OLLAMA_URL = 'http://localhost:11434/api/generate';
 const MODEL = 'phi3:mini';
 
-// phi3:mini context window is ~4096 tokens (~3000 words).
-// We cap each file and the total prompt so Ollama never gets a 413.
-const MAX_CHARS_PER_FILE = 800;   // ~200 tokens per file
-const MAX_TOTAL_CHARS    = 6000;  // total code block sent to model
-const MAX_FILES          = 10;    // scan at most 10 files per batch
 
-// ─── Build the security analysis prompt ──────────────────────────────────────
+const MAX_CHARS_PER_FILE = 800;  
+const MAX_TOTAL_CHARS    = 6000; 
+const MAX_FILES          = 10;    
+
 
 function buildPrompt(files) {
-  // If caller sends a single code string (old format), wrap it
   const fileList = Array.isArray(files)
     ? files
     : [{ path: 'file.js', code: files }];
 
-  // Take only the most relevant files (skip tiny config/lock files)
   const filtered = fileList
     .filter(f => f.code && f.code.trim().length > 30)
     .slice(0, MAX_FILES);
 
-  // Truncate each file and stop adding once we hit the total cap
   let totalChars = 0;
   const chunks = [];
   for (const f of filtered) {
@@ -87,7 +82,6 @@ PROJECT CODE:
 ${projectSummary}`;
 }
 
-// ─── Call Ollama and stream response back ────────────────────────────────────
 
 async function analyseWithOllama(prompt) {
   let fullResponse = '';
@@ -99,7 +93,7 @@ async function analyseWithOllama(prompt) {
       prompt,
       stream: true,
       options: {
-        temperature: 0.1,  // low = consistent, not creative
+        temperature: 0.1,  
         num_predict: 2048,
       },
     },
@@ -116,24 +110,20 @@ async function analyseWithOllama(prompt) {
           if (parsed.done) resolve(fullResponse);
         }
       } catch {
-        // partial chunk — keep accumulating
       }
     });
     response.data.on('error', reject);
   });
 }
 
-// ─── Parse JSON findings out of raw LLM output ───────────────────────────────
 
 function parseFindings(raw) {
   try {
-    // Strip markdown fences phi3 sometimes adds
     const cleaned = raw
       .replace(/```json/gi, '')
       .replace(/```/g, '')
       .trim();
 
-    // Find the array even if model adds preamble text before it
     const start = cleaned.indexOf('[');
     const end = cleaned.lastIndexOf(']');
     if (start === -1 || end === -1) return [];
@@ -145,10 +135,6 @@ function parseFindings(raw) {
   }
 }
 
-// ─── Routes ───────────────────────────────────────────────────────────────────
-
-// NEW: whole-project scan (called by VS Code extension)
-// Expects: { files: [{ path, code }, ...] }
 app.post('/analyze-project', async (req, res) => {
   const { files } = req.body;
 
@@ -171,8 +157,7 @@ app.post('/analyze-project', async (req, res) => {
   }
 });
 
-// LEGACY: single code string (keeps your old /analyze working too)
-// Expects: { code: "..." }
+
 app.post('/analyze', async (req, res) => {
   const { code } = req.body;
 
@@ -183,11 +168,10 @@ app.post('/analyze', async (req, res) => {
   console.log(`[server] Single-file scan with ${MODEL}...`);
 
   try {
-    const prompt = buildPrompt(code); // buildPrompt handles string too
+    const prompt = buildPrompt(code);
     const raw = await analyseWithOllama(prompt);
     const vulnerabilities = parseFindings(raw);
 
-    // Return in your original format so nothing breaks
     return res.json({ vulnerabilities });
   } catch (err) {
     console.error('[server] Ollama error:', err.message);
@@ -195,12 +179,10 @@ app.post('/analyze', async (req, res) => {
   }
 });
 
-// Health check — VS Code extension calls this on startup
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', model: MODEL });
 });
 
-// ─── Start ────────────────────────────────────────────────────────────────────
 
 app.listen(3000, () => {
   console.log('[server] Security analysis server → http://localhost:3000');
