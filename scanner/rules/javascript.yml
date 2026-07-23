@@ -1,0 +1,103 @@
+rules:
+
+  - id: sentinel-javascript-sql-injection
+
+    languages:
+      - javascript
+      - typescript
+
+    severity: ERROR
+
+    message: >
+      SQL query is built using string concatenation with user-controlled data.
+
+    patterns:
+
+      - pattern-either:
+
+          - pattern: |
+              $QUERY = $SQL + $INPUT
+
+          - pattern: |
+              $QUERY = $SQL + $REQ.$FIELD
+
+    metadata:
+      category: security
+      cwe: CWE-89
+
+
+
+  - id: sentinel-javascript-command-injection
+
+    languages:
+      - javascript
+      - typescript
+
+    severity: ERROR
+
+    message: >
+      User-controlled input reaches command execution.
+
+    patterns:
+
+      - pattern-either:
+
+          - pattern: |
+              exec($CMD, ...)
+
+          - pattern: |
+              child_process.exec($CMD, ...)
+
+          - pattern: |
+              $CP.exec($CMD, ...)
+
+    metadata:
+      category: security
+      cwe: CWE-78
+
+
+  - id: sentinel-javascript-xss
+
+    languages:
+      - javascript
+      - typescript
+
+    severity: WARNING
+
+    message: >
+      User input is directly inserted into HTML response.
+
+    patterns:
+
+      - pattern-either:
+
+          - pattern: |
+              res.send(`...${$INPUT}...`)
+
+          - pattern: |
+              res.write(`...${$INPUT}...`)
+
+
+    metadata:
+      category: security
+      cwe: CWE-79
+
+
+  - id: sentinel-javascript-eval
+
+    languages:
+      - javascript
+      - typescript
+
+    severity: ERROR
+
+    message: >
+      Dynamic code execution through eval can lead to code execution.
+
+    pattern: |
+      eval($INPUT)
+
+
+    metadata:
+      category: security
+      cwe: CWE-95
