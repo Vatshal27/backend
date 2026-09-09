@@ -1,3 +1,8 @@
+const {
+    getCodeContext
+} = require("./context");
+
+
 function normalizeFindings(findings) {
 
     return findings.map(finding => {
@@ -45,6 +50,15 @@ function normalizeFindings(findings) {
                 "",
 
 
+            codeContext:
+                getCodeContext(
+                    finding.file,
+                    Number(
+                        finding.line
+                    )
+                ),
+
+
             tools:
                 finding.tools ||
                 [
@@ -79,12 +93,6 @@ function normalizeSeverity(level) {
 function calculateConfidence(finding) {
 
 
-    /*
-       Exact dangerous patterns:
-       High confidence
-    */
-
-
     const highConfidence = [
 
         "SQL Injection",
@@ -113,12 +121,6 @@ function calculateConfidence(finding) {
 
 
 
-    /*
-       Generic warnings:
-       Lower confidence
-    */
-
-
     if (
         finding.severity === "High"
     ) {
@@ -132,6 +134,10 @@ function calculateConfidence(finding) {
     return "Low";
 
 }
+
+
+
+
 
 module.exports = {
     normalizeFindings

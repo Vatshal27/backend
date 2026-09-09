@@ -7,16 +7,23 @@ const axios = require('axios');
 const {
     checkDocker,
     runSandbox,
-    stopSandbox
-} = require('./docker-sandbox');
+    stopSandbox,
+} = require('./docker/sandbox');
+const {
+  discoverRuntimes,
+  checkRuntime,
+} = require('./runtime');
 
 const {
-    runStaticAnalysis
-} = require('./scanner/scanner');
+    runStaticAnalysis,
+} = require('./docker-scanner');
 
 const {
-    buildSecurityPrompt
-} = require('./scanner/prompt-builder');
+    analyzeFindings,
+} = require('./llm/analyzer');
+
+const { MODEL } = require('./llm/ollama');
+
 
 
 const app = express();
@@ -26,236 +33,106 @@ app.use(express.json({ limit: '50mb' }));
 
 const PORT = 3000;
 
-const OLLAMA_URL =
-    'http://localhost:11434/api/generate';
-
 const OLLAMA_TAGS_URL =
     'http://localhost:11434/api/tags';
 
-const MODEL =
-    'codellama:13b';
-
-
-
-async function analyseWithOllama(prompt) {
-
-    console.log(
-        `[server] Prompt length: ${prompt.length}`
-    );
-
-    console.log(
-        `[server] Sending request to ${MODEL}`
-    );
-
-
-    const response =
-        await axios.post(
-            OLLAMA_URL,
-            {
-                model: MODEL,
-                prompt,
-                stream: false,
-                format: 'json',
-
-                options: {
-                    temperature: 0.1,
-                    num_predict: 1200,
-                    num_ctx: 4096
-                }
-            },
-            {
-                timeout: 600000
-            }
-        );
-
-
-    if (response.data.error) {
-
-        throw new Error(
-            response.data.error
-        );
-
-    }
-
-
-    if (
-        !response.data ||
-        typeof response.data.response !== 'string'
-    ) {
-
-        throw new Error(
-            'Invalid Ollama response'
-        );
-
-    }
-
-
-    return response.data.response;
-
-}
-
-
-
-function normaliseFinding(
-    finding,
-    index
-) {
-
-    return {
-
-        id:
-            String(
-                finding.id ||
-                `finding-${index + 1}`
-            ),
-
-        type:
-            String(
-                finding.type ||
-                'Security Issue'
-            ),
-
-        severity:
-            finding.severity || 'Medium',
-
-        file:
-            String(
-                finding.file ||
-                'Unknown'
-            ),
-
-        line:
-            String(
-                finding.line ||
-                ''
-            ),
-
-        explanation:
-            String(
-                finding.explanation ||
-                ''
-            ),
-
-        attackStory:
-            Array.isArray(
-                finding.attackStory
-            )
-                ? finding.attackStory
-                : [],
-
-        fix:
-            String(
-                finding.fix ||
-                ''
-            )
-    };
-
-}
-
-
-
-function parseFindings(raw) {
-
-    const cleaned =
-        String(raw)
-        .replace(/```json/gi, '')
-        .replace(/```/g, '')
-        .trim();
-
-
-    const parsed =
-        JSON.parse(cleaned);
-
-
-    let findings;
-
-
-    if (Array.isArray(parsed)) {
-
-        findings = parsed;
-
-    } else if (
-        parsed &&
-        Array.isArray(parsed.findings)
-    ) {
-
-        findings = parsed.findings;
-
-    } else {
-
-        throw new Error(
-            'No findings returned'
-        );
-
-    }
-
-
-    return findings
-        .map(normaliseFinding)
-        .filter(Boolean);
-
-}
-
-
 
 function getErrorMessage(error) {
-
     if (
         error.response &&
         error.response.data
     ) {
-
         return (
             error.response.data.detail ||
             error.response.data.error ||
             error.message
         );
-
     }
 
-
     return error.message || String(error);
-
 }
 
+app.get(
+  '/runtime/discover',
+  async (req, res) => {
+    try {
+      const runtimes =
+        await discoverRuntimes();
 
+      res.json({
+        ok: true,
+        runtimes,
+      });
+    } catch (error) {
+      res.status(500).json({
+        ok: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : String(error),
+      });
+    }
+  }
+);
 
+app.post(
+  '/runtime/check',
+  async (req, res) => {
+    try {
+      const {
+        targetUrl,
+      } = req.body || {};
+
+      if (!targetUrl) {
+        return res.status(400).json({
+          ok: false,
+          error:
+            'targetUrl is required.',
+        });
+      }
+
+      const result =
+        await checkRuntime(
+          targetUrl
+        );
+
+      res.json({
+        ok: true,
+        ...result,
+      });
+    } catch (error) {
+      res.status(400).json({
+        ok: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : String(error),
+      });
+    }
+  }
+);
 
 app.get(
     '/health',
-    async (_req,res)=>{
-
+    async (_req, res) => {
         try {
-
             await axios.get(
                 OLLAMA_TAGS_URL,
-                {
-                    timeout:5000
-                }
+                { timeout: 5000 }
             );
 
-
             res.json({
-
-                status:'ok',
-                model:MODEL,
-                ollama:'connected'
-
+                status: 'ok',
+                model: MODEL,
+                ollama: 'connected',
             });
-
-
-        } catch(error) {
-
+        } catch {
             res.status(503).json({
-
-                status:'error',
-                model:MODEL,
-                ollama:'disconnected'
-
+                status: 'error',
+                model: MODEL,
+                ollama: 'disconnected',
             });
-
         }
-
     }
 );
 
@@ -263,150 +140,115 @@ app.get(
 
 app.post(
     '/analyze-project',
-    async(req,res)=>{
-
+    async (req, res) => {
         console.log(
             '[server] Starting security scan...'
         );
 
-
         try {
+            let staticFindings = [];
 
-            const staticFindings =
-                await runStaticAnalysis(
+            // Accept either an array of files or a projectPath.
+            if (Array.isArray(req.body.files)) {
+                staticFindings = await runStaticAnalysis(
+                    req.body.files
+                );
+            } else {
+                staticFindings = await runStaticAnalysis(
                     req.body.projectPath || '.'
                 );
-
+            }
 
             console.log(
                 `[server] Static findings: ${staticFindings.length}`
             );
 
-
-            const prompt =
-                buildSecurityPrompt(
-                    staticFindings
-                );
-
-
-            const raw =
-                await analyseWithOllama(
-                    prompt
-                );
-
-
-            const findings =
-                parseFindings(
-                    raw
-                );
-
+            // Run LLM analysis through the centralized analyzer.
+            // Pass source files so AI audit runs even if SAST found 0 issues.
+            const findings = await analyzeFindings(staticFindings, req.body.files);
 
             res.json({
-
                 findings,
-
                 staticFindings,
-
-                model:MODEL
-
+                filesScanned: Array.isArray(req.body.files)
+                    ? req.body.files.length
+                    : 0,
+                model: MODEL,
             });
-
-
-        } catch(error) {
-
+        } catch (error) {
             console.error(
                 '[server] Error:',
                 getErrorMessage(error)
             );
 
-
             res.status(500).json({
-
-                error:'Analysis failed',
-
-                detail:
-                    getErrorMessage(error)
-
+                error: 'Analysis failed',
+                detail: getErrorMessage(error),
             });
-
         }
-
     }
 );
 
 
+app.post('/sandbox/run', async (req, res) => {
+  try {
+    const findings =
+      req.body &&
+      Array.isArray(req.body.findings)
+        ? req.body.findings
+        : [];
 
-app.post(
-    '/sandbox/run',
-    async(req,res)=>{
+    const mode =
+      req.body?.mode ===
+      'project-validation'
+        ? 'project-validation'
+        : 'simulation';
 
-        const findings =
-            req.body.findings || [];
-
-
-        if(findings.length===0){
-
-            return res.status(400).json({
-
-                error:
-                'No findings provided'
-
-            });
-
-        }
-
-
-        try {
-
-            const report =
-                await runSandbox(
-                    findings
-                );
-
-
-            res.json(report);
-
-
-        } catch(error){
-
-            res.status(500).json({
-
-                error:
-                getErrorMessage(error)
-
-            });
-
-        }
-
+    if (!findings.length) {
+      return res.status(400).json({
+        error:
+          'At least one finding is required to run the sandbox.',
+      });
     }
-);
+
+    const report =
+      await runSandbox(
+        findings,
+        { mode }
+      );
+
+    return res.json(
+      report
+    );
+  } catch (error) {
+    console.error(
+      '[sandbox]',
+      error
+    );
+
+    return res.status(500).json({
+      error:
+        error instanceof Error
+          ? error.message
+          : String(error),
+    });
+  }
+});
+
 
 
 
 app.post(
     '/sandbox/stop',
-    async(_req,res)=>{
-
+    async (_req, res) => {
         try {
-
-            const result =
-                await stopSandbox();
-
-
+            const result = await stopSandbox();
             res.json(result);
-
-
-        } catch(error){
-
+        } catch (error) {
             res.status(500).json({
-
-                error:
-                getErrorMessage(error)
-
+                error: getErrorMessage(error),
             });
-
         }
-
     }
 );
 
@@ -414,48 +256,30 @@ app.post(
 
 app.get(
     '/sandbox/check',
-    async(_req,res)=>{
-
+    async (_req, res) => {
         try {
-
-            const result =
-                await checkDocker();
-
-
+            const result = await checkDocker();
             res.json(result);
-
-
-        } catch(error){
-
+        } catch (error) {
             res.status(503).json({
-
-                error:
-                getErrorMessage(error)
-
+                error: getErrorMessage(error),
             });
-
         }
-
     }
 );
 
 
 
-app.listen(
-    PORT,
-    ()=>{
+app.listen(PORT, () => {
+    console.log(
+        `[server] Running on http://localhost:${PORT}`
+    );
 
-        console.log(
-            `[server] Running on http://localhost:${PORT}`
-        );
+    console.log(
+        `[server] Model: ${MODEL}`
+    );
 
-        console.log(
-            `[server] Model: ${MODEL}`
-        );
-
-        console.log(
-            '[server] Ollama must be running: ollama serve'
-        );
-
-    }
-);
+    console.log(
+        '[server] Ollama must be running: ollama serve'
+    );
+});

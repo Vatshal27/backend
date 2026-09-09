@@ -4,7 +4,8 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node server.js",
+    "scanner:check": "node -e \"require('./docker-scanner').checkDocker().then(r=>console.log(r)).catch(e=>console.error(e))\""
   },
   "keywords": [],
   "author": "",
@@ -21,6 +22,8 @@
   "type": "commonjs",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "eslint": "^10.7.0"
+    "@types/node": "^22.20.2",
+    "eslint": "^10.7.0",
+    "globals": "^17.12.0"
   }
 }

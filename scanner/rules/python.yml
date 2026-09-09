@@ -1,0 +1,72 @@
+rules:
+  - id: python-dangerous-eval
+    patterns:
+      - pattern: eval(...)
+    message: >
+      Use of eval() can execute arbitrary code. Consider using
+      ast.literal_eval() for safe evaluation of literals.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-95"
+
+  - id: python-dangerous-exec
+    patterns:
+      - pattern: exec(...)
+    message: >
+      Use of exec() can execute arbitrary code. Avoid exec() or
+      restrict it to trusted, validated input.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-95"
+
+  - id: python-subprocess-shell-true
+    patterns:
+      - pattern: subprocess.call(..., shell=True, ...)
+      - pattern: subprocess.run(..., shell=True, ...)
+      - pattern: subprocess.Popen(..., shell=True, ...)
+    message: >
+      Using shell=True in subprocess calls is vulnerable to shell
+      injection. Pass a list of arguments instead.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: "CWE-78"
+
+  - id: python-os-system
+    patterns:
+      - pattern: os.system(...)
+    message: >
+      os.system() is vulnerable to command injection. Use
+      subprocess.run() with a list of arguments instead.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: "CWE-78"
+
+  - id: python-sql-string-concat
+    patterns:
+      - pattern: |
+          cursor.execute("..." + $VAR + "...")
+      - pattern: |
+          cursor.execute(f"...{$VAR}...")
+    message: >
+      SQL query built with string concatenation or f-strings is
+      vulnerable to SQL injection. Use parameterised queries.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-89"
+
+  - id: python-pickle-load
+    patterns:
+      - pattern: pickle.load(...)
+      - pattern: pickle.loads(...)
+    message: >
+      Deserializing untrusted data with pickle can lead to arbitrary
+      code execution. Use json or a safe serialization format.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: "CWE-502"

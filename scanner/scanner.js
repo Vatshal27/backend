@@ -14,6 +14,10 @@ const {
     normalizeFindings
 } = require("./normalize");
 
+const {
+    runSandbox
+} = require("../docker-sandbox");
+
 
 
 async function runStaticAnalysis(projectPath) {
@@ -101,6 +105,27 @@ async function runStaticAnalysis(projectPath) {
         cleaned
     );
 
+}
+
+async function runSandboxSimulation(findings) {
+    if (!findings || findings.length === 0) {
+        return { events: [], summary: 'No findings to simulate' };
+    }
+
+    console.log('[Scanner] Starting sandbox simulation...');
+
+    try {
+        const sandboxResult = await runSandbox(findings);
+        console.log('[Scanner] Sandbox simulation completed');
+        return sandboxResult;
+    } catch (error) {
+        console.error('[Scanner] Sandbox simulation failed:', error.message);
+        return {
+            events: [],
+            summary: `Sandbox simulation failed: ${error.message}`,
+            error: error.message
+        };
+    }
 }
 
 
@@ -208,5 +233,6 @@ function highestSeverity(a, b) {
 
 
 module.exports = {
-    runStaticAnalysis
+    runStaticAnalysis,
+    runSandboxSimulation
 };

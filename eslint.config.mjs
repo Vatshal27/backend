@@ -1,26 +1,16 @@
 import js from "@eslint/js";
-
+import globals from "globals";
 
 export default [
-
     {
         ...js.configs.recommended,
 
         languageOptions: {
-
             globals: {
-
-                require: "readonly",
-                module: "readonly",
-                process: "readonly",
-                console: "readonly"
-
+                ...globals.node
             }
-
         }
-
     },
-
 
     {
         files: [
@@ -28,15 +18,10 @@ export default [
         ],
 
         rules: {
-
             "no-eval": "error",
-
             "no-implied-eval": "error",
-
+            "no-control-regex": "off",
             "no-unused-vars": "warn"
-
         }
-
     }
-
 ];
