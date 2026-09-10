@@ -9,9 +9,10 @@ const {
     runSandbox,
     stopSandbox,
 } = require('./docker/sandbox');
+
 const {
-  discoverRuntimes,
-  checkRuntime,
+    discoverRuntimes,
+    checkRuntime,
 } = require('./runtime');
 
 const {
@@ -24,8 +25,6 @@ const {
 
 const { MODEL } = require('./llm/ollama');
 
-
-
 const app = express();
 
 app.use(cors());
@@ -35,7 +34,6 @@ const PORT = 3000;
 
 const OLLAMA_TAGS_URL =
     'http://localhost:11434/api/tags';
-
 
 function getErrorMessage(error) {
     if (
@@ -53,63 +51,63 @@ function getErrorMessage(error) {
 }
 
 app.get(
-  '/runtime/discover',
-  async (req, res) => {
-    try {
-      const runtimes =
-        await discoverRuntimes();
+    '/runtime/discover',
+    async (_req, res) => {
+        try {
+            const runtimes =
+                await discoverRuntimes();
 
-      res.json({
-        ok: true,
-        runtimes,
-      });
-    } catch (error) {
-      res.status(500).json({
-        ok: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : String(error),
-      });
+            res.json({
+                ok: true,
+                runtimes,
+            });
+        } catch (error) {
+            res.status(500).json({
+                ok: false,
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : String(error),
+            });
+        }
     }
-  }
 );
 
 app.post(
-  '/runtime/check',
-  async (req, res) => {
-    try {
-      const {
-        targetUrl,
-      } = req.body || {};
+    '/runtime/check',
+    async (req, res) => {
+        try {
+            const {
+                targetUrl,
+            } = req.body || {};
 
-      if (!targetUrl) {
-        return res.status(400).json({
-          ok: false,
-          error:
-            'targetUrl is required.',
-        });
-      }
+            if (!targetUrl) {
+                return res.status(400).json({
+                    ok: false,
+                    error:
+                        'targetUrl is required.',
+                });
+            }
 
-      const result =
-        await checkRuntime(
-          targetUrl
-        );
+            const result =
+                await checkRuntime(
+                    targetUrl
+                );
 
-      res.json({
-        ok: true,
-        ...result,
-      });
-    } catch (error) {
-      res.status(400).json({
-        ok: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : String(error),
-      });
+            res.json({
+                ok: true,
+                ...result,
+            });
+        } catch (error) {
+            res.status(400).json({
+                ok: false,
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : String(error),
+            });
+        }
     }
-  }
 );
 
 app.get(
@@ -136,8 +134,6 @@ app.get(
     }
 );
 
-
-
 app.post(
     '/analyze-project',
     async (req, res) => {
@@ -148,31 +144,41 @@ app.post(
         try {
             let staticFindings = [];
 
-            // Accept either an array of files or a projectPath.
-            if (Array.isArray(req.body.files)) {
-                staticFindings = await runStaticAnalysis(
+            if (
+                Array.isArray(
                     req.body.files
-                );
+                )
+            ) {
+                staticFindings =
+                    await runStaticAnalysis(
+                        req.body.files
+                    );
             } else {
-                staticFindings = await runStaticAnalysis(
-                    req.body.projectPath || '.'
-                );
+                staticFindings =
+                    await runStaticAnalysis(
+                        req.body.projectPath || '.'
+                    );
             }
 
             console.log(
                 `[server] Static findings: ${staticFindings.length}`
             );
 
-            // Run LLM analysis through the centralized analyzer.
-            // Pass source files so AI audit runs even if SAST found 0 issues.
-            const findings = await analyzeFindings(staticFindings, req.body.files);
+            const findings =
+                await analyzeFindings(
+                    staticFindings,
+                    req.body.files
+                );
 
             res.json({
                 findings,
                 staticFindings,
-                filesScanned: Array.isArray(req.body.files)
-                    ? req.body.files.length
-                    : 0,
+                filesScanned:
+                    Array.isArray(
+                        req.body.files
+                    )
+                        ? req.body.files.length
+                        : 0,
                 model: MODEL,
             });
         } catch (error) {
@@ -182,104 +188,139 @@ app.post(
             );
 
             res.status(500).json({
-                error: 'Analysis failed',
-                detail: getErrorMessage(error),
+                error:
+                    'Analysis failed',
+                detail:
+                    getErrorMessage(error),
             });
         }
     }
 );
 
+app.post(
+    '/sandbox/run',
+    async (req, res) => {
+        try {
+            const findings =
+                req.body &&
+                Array.isArray(
+                    req.body.findings
+                )
+                    ? req.body.findings
+                    : [];
 
-app.post('/sandbox/run', async (req, res) => {
-  try {
-    const findings =
-      req.body &&
-      Array.isArray(req.body.findings)
-        ? req.body.findings
-        : [];
+            const mode =
+                req.body?.mode ===
+                'project-validation'
+                    ? 'project-validation'
+                    : 'simulation';
 
-    const mode =
-      req.body?.mode ===
-      'project-validation'
-        ? 'project-validation'
-        : 'simulation';
+            const targetUrl =
+                req.body?.targetUrl;
 
-    if (!findings.length) {
-      return res.status(400).json({
-        error:
-          'At least one finding is required to run the sandbox.',
-      });
+            if (!findings.length) {
+                return res.status(400).json({
+                    error:
+                        'At least one finding is required to run the sandbox.',
+                });
+            }
+
+            if (
+                mode ===
+                    'project-validation' &&
+                !targetUrl
+            ) {
+                return res.status(400).json({
+                    error:
+                        'targetUrl is required for project validation.',
+                });
+            }
+
+            const report =
+                await runSandbox({
+                    findings,
+                    mode,
+                    targetUrl,
+                });
+
+            return res.json(
+                report
+            );
+        } catch (error) {
+            console.error(
+                '[sandbox]',
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : String(error),
+            });
+        }
     }
-
-    const report =
-      await runSandbox(
-        findings,
-        { mode }
-      );
-
-    return res.json(
-      report
-    );
-  } catch (error) {
-    console.error(
-      '[sandbox]',
-      error
-    );
-
-    return res.status(500).json({
-      error:
-        error instanceof Error
-          ? error.message
-          : String(error),
-    });
-  }
-});
-
-
-
+);
 
 app.post(
     '/sandbox/stop',
-    async (_req, res) => {
+    async (req, res) => {
         try {
-            const result = await stopSandbox();
+            const sandboxId =
+                req.body?.sandboxId;
+
+            if (!sandboxId) {
+                return res.status(400).json({
+                    error:
+                        'sandboxId is required.',
+                });
+            }
+
+            const result =
+                await stopSandbox(
+                    sandboxId
+                );
+
             res.json(result);
         } catch (error) {
             res.status(500).json({
-                error: getErrorMessage(error),
+                error:
+                    getErrorMessage(error),
             });
         }
     }
 );
-
-
 
 app.get(
     '/sandbox/check',
     async (_req, res) => {
         try {
-            const result = await checkDocker();
+            const result =
+                await checkDocker();
+
             res.json(result);
         } catch (error) {
             res.status(503).json({
-                error: getErrorMessage(error),
+                error:
+                    getErrorMessage(error),
             });
         }
     }
 );
 
+app.listen(
+    PORT,
+    () => {
+        console.log(
+            `[server] Running on http://localhost:${PORT}`
+        );
 
+        console.log(
+            `[server] Model: ${MODEL}`
+        );
 
-app.listen(PORT, () => {
-    console.log(
-        `[server] Running on http://localhost:${PORT}`
-    );
-
-    console.log(
-        `[server] Model: ${MODEL}`
-    );
-
-    console.log(
-        '[server] Ollama must be running: ollama serve'
-    );
-});
+        console.log(
+            '[server] Ollama must be running: ollama serve'
+        );
+    }
+);

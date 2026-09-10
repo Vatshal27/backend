@@ -1,5 +1,7 @@
 'use strict';
 
+const crypto = require('crypto');
+
 const {
   docker,
   getContainerLogs,
@@ -10,8 +12,6 @@ const {
   SANDBOX_LIMITS,
   SANDBOX_TIMEOUT,
 } = require('./config');
-
-const crypto = require('crypto');
 
 function createId(prefix = '') {
   return (
@@ -122,6 +122,7 @@ const attacks = ${JSON.stringify(attacks)};
 const targetUrl = ${JSON.stringify(targetUrl)};
 
 const parsedTarget = new URL(targetUrl);
+
 const transport =
   parsedTarget.protocol === 'https:'
     ? https
@@ -131,14 +132,19 @@ const results = [];
 
 function request(path) {
   return new Promise((resolve, reject) => {
-    const url = new URL(path, targetUrl);
+    const url = new URL(
+      path,
+      targetUrl
+    );
 
     const req = transport.get(
       {
         hostname: url.hostname,
         port:
           url.port ||
-          (url.protocol === 'https:' ? 443 : 80),
+          (url.protocol === 'https:'
+            ? 443
+            : 80),
         path:
           url.pathname +
           url.search,
@@ -165,13 +171,18 @@ function request(path) {
 
     req.on('timeout', () => {
       req.destroy(
-        new Error('Request timed out')
+        new Error(
+          'Request timed out'
+        )
       );
     });
   });
 }
 
-function containsPayload(body, payload) {
+function containsPayload(
+  body,
+  payload
+) {
   return (
     typeof body === 'string' &&
     body.includes(payload)
@@ -182,41 +193,52 @@ function detectEvidence(
   attack,
   response
 ) {
-  const body = response.body || '';
+  const body =
+    response.body || '';
 
-  if (attack.attackType === 'xss') {
+  if (
+    attack.attackType === 'xss'
+  ) {
     return containsPayload(
       body,
       attack.payload
     );
   }
 
-  if (attack.attackType === 'sqli') {
+  if (
+    attack.attackType === 'sqli'
+  ) {
     return (
       /sql syntax|mysql|postgres|sqlite|database error|syntax error/i.test(
         body
       ) ||
-      /users|query|database/i.test(body)
-    );
-  }
-
-  if (attack.attackType === 'path_traversal') {
-    return (
-      /root:|etc\\/passwd|secret|private|sensitive/i.test(
+      /users|query|database/i.test(
         body
       )
     );
   }
 
-  if (attack.attackType === 'cmdi') {
-    return (
-      /uid=|gid=|whoami|command executed|command output/i.test(
-        body
-      )
+  if (
+    attack.attackType ===
+    'path_traversal'
+  ) {
+    return /root:|etc\\/passwd|secret|private|sensitive/i.test(
+      body
     );
   }
 
-  if (attack.attackType === 'auth_bypass') {
+  if (
+    attack.attackType === 'cmdi'
+  ) {
+    return /uid=|gid=|whoami|command executed|command output/i.test(
+      body
+    );
+  }
+
+  if (
+    attack.attackType ===
+    'auth_bypass'
+  ) {
     return (
       response.statusCode === 200 &&
       !/unauthorized|forbidden|authentication required/i.test(
@@ -225,11 +247,12 @@ function detectEvidence(
     );
   }
 
-  if (attack.attackType === 'code_injection') {
-    return (
-      /process\\.env|NODE_|PATH=|HOME=|environment/i.test(
-        body
-      )
+  if (
+    attack.attackType ===
+    'code_injection'
+  ) {
+    return /process\\.env|NODE_|PATH=|HOME=|environment/i.test(
+      body
     );
   }
 
@@ -384,69 +407,36 @@ main().catch(error => {
 `;
 }
 
-async function createAttacker(
+async function createAttacker({
   networkName,
   containerName,
-  attackerCode
-) {
-  const container =
-    await docker.createContainer({
-      name: containerName,
-      Image: ATTACK_IMAGE,
+  script,
+  projectValidation = false,
+}) {
+  const hostConfig = {
+    AutoRemove: false,
+    Memory:
+      SANDBOX_LIMITS.memory,
+    NanoCpus:
+      SANDBOX_LIMITS.nanoCpus,
+    PidsLimit:
+      SANDBOX_LIMITS.pidsLimit,
+    NetworkMode:
+      projectValidation
+        ? 'host'
+        : networkName,
+  };
 
-      Env: [
-        `ATTACK_CODE=${Buffer.from(
-          attackerCode,
-          'utf8'
-        ).toString('base64')}`,
-      ],
-
-      Cmd: [
-        'sh',
-        '-c',
-        'echo "$ATTACK_CODE" | base64 -d > /tmp/attacker.js && node /tmp/attacker.js',
-      ],
-
-      HostConfig: {
-        NetworkMode: networkName,
-
-        Memory:
-          SANDBOX_LIMITS.memory,
-
-        NanoCpus:
-          SANDBOX_LIMITS.nanoCpus,
-
-        PidsLimit:
-          SANDBOX_LIMITS.pidsLimit,
-
-        CapDrop: ['ALL'],
-
-        SecurityOpt: [
-          'no-new-privileges:true',
-        ],
-
-        ReadonlyRootfs: true,
-
-        Tmpfs: {
-          '/tmp':
-            'rw,noexec,nosuid,size=16m',
-        },
-
-        ExtraHosts: [
-          'host.docker.internal:host-gateway',
-        ],
-      },
-
-      NetworkingConfig: {
-        EndpointsConfig: {
-          [networkName]: {},
-        },
-      },
-    });
-
-  await container.start();
-
-  return container;
+  return docker.createContainer({
+    Image: ATTACK_IMAGE,
+    name: containerName,
+    Cmd: [
+      'node',
+      '-e',
+      script,
+    ],
+    HostConfig: hostConfig,
+  });
 }
 
 async function runAttacks({
@@ -455,6 +445,7 @@ async function runAttacks({
   findings,
   plans,
   targetUrl,
+  projectValidation = false,
 }) {
   if (!targetUrl) {
     throw new Error(
@@ -463,10 +454,12 @@ async function runAttacks({
   }
 
   const resolvedTarget =
-    targetUrl.replace(
-      'localhost',
-      'host.docker.internal'
-    );
+    projectValidation
+      ? targetUrl
+      : targetUrl.replace(
+          'localhost',
+          'host.docker.internal'
+        );
 
   const script =
     buildAttackerScript(
@@ -476,11 +469,14 @@ async function runAttacks({
     );
 
   const container =
-    await createAttacker(
+    await createAttacker({
       networkName,
       containerName,
-      script
-    );
+      script,
+      projectValidation,
+    });
+
+  await container.start();
 
   const result =
     await Promise.race([

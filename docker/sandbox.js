@@ -89,18 +89,15 @@ function normalizeTargetUrl(targetUrl) {
     'host.docker.internal',
   ];
 
-  if (
-    !allowedHosts.includes(hostname)
-  ) {
+  if (!allowedHosts.includes(hostname)) {
     throw new Error(
       'Project validation is restricted to a local runtime.'
     );
   }
 
-  return parsed.toString().replace(
-    /\/$/,
-    ''
-  );
+  return parsed
+    .toString()
+    .replace(/\/$/, '');
 }
 
 function createEvent(
@@ -114,15 +111,12 @@ function createEvent(
   events.push({
     id: createId('evt-'),
     step: events.length + 1,
-    timestamp:
-      new Date().toISOString(),
+    timestamp: new Date().toISOString(),
     stage,
     ...(tool ? { tool } : {}),
     status,
     description,
-    ...(findingId
-      ? { findingId }
-      : {}),
+    ...(findingId ? { findingId } : {}),
   });
 }
 
@@ -155,6 +149,7 @@ async function runSandbox(options = {}) {
     new Date().toISOString();
 
   const events = [];
+
   const containers = {
     target: null,
     attacker: null,
@@ -163,22 +158,20 @@ async function runSandbox(options = {}) {
 
   let network = null;
   let target = null;
-
+  let targetBrowserUrl = null;
 
   const runtimeTarget =
     mode === 'project-validation'
-      ? normalizeTargetUrl(
-          targetUrl
-        )
+      ? normalizeTargetUrl(targetUrl)
       : null;
 
   try {
+    // Initialize the sandbox.
     createEvent(
       events,
       'initialization',
       'started',
-      mode ===
-        'project-validation'
+      mode === 'project-validation'
         ? 'Initializing controlled validation against the local project runtime.'
         : 'Initializing isolated simulation environment.'
     );
@@ -189,7 +182,7 @@ async function runSandbox(options = {}) {
     if (!dockerStatus.ok) {
       throw new Error(
         dockerStatus.reason ||
-          'Docker is unavailable.'
+        'Docker is unavailable.'
       );
     }
 
@@ -201,7 +194,7 @@ async function runSandbox(options = {}) {
     );
 
     await ensureImages({
-    includeTarget:
+      includeTarget:
         mode === 'simulation',
     });
 
@@ -212,72 +205,64 @@ async function runSandbox(options = {}) {
       'Required sandbox images are available.'
     );
 
+    // Create the validator network.
     network =
-    await createNetwork(
+      await createNetwork(
         `sentinelai-${sandboxId}`,
         {
-        hostAccess:
+          hostAccess:
             mode === 'project-validation',
         }
-    );
+      );
 
     createEvent(
       events,
       'network',
       'success',
-      'Isolated validator network created.'
+      mode === 'project-validation'
+        ? 'Controlled validator network created with local host access.'
+        : 'Isolated validator network created.'
     );
 
-    const categories =
-      createCategories(
-        findings
-      );
+    // Start the target before creating the attack plan.
+    let attackTargetUrl;
 
-    const plans =
-      createAttackPlan(
-        findings,
-        mode ===
-          'project-validation'
-          ? runtimeTarget
-          : undefined
-      );
+    if (mode === 'simulation') {
+      const categories =
+        createCategories(findings);
 
-    createEvent(
-      events,
-      'attack',
-      'success',
-      `${plans.length} runtime validation plan(s) created.`
-    );
-
-    if (
-      mode === 'simulation'
-    ) {
       const targetCode =
         generateTargetApplication(
           findings,
           categories
         );
 
-      target =
+      const createdTarget =
         await createTarget(
           network.name,
           `sentinelai-target-${sandboxId}`,
           targetCode
         );
 
+      target =
+        createdTarget.container;
+
+      targetBrowserUrl =
+        createdTarget.browserUrl;
+
       containers.target =
-        target;
+        createdTarget.container;
 
       createEvent(
         events,
         'target',
         'running',
-        'Synthetic vulnerable target started.'
+        `Synthetic target started at ${targetBrowserUrl}.`
       );
 
       const ready =
         await waitForTarget(
-          target
+          createdTarget.container
         );
 
       if (!ready) {
@@ -290,9 +275,15 @@ async function runSandbox(options = {}) {
         events,
         'target',
         'success',
-        'Synthetic target is healthy and ready for validation.'
+        `Synthetic target is healthy and available at ${targetBrowserUrl}.`
       );
+
+      attackTargetUrl =
+        targetBrowserUrl;
     } else {
+      attackTargetUrl =
+        runtimeTarget;
+
       createEvent(
         events,
         'target',
@@ -301,20 +292,41 @@ async function runSandbox(options = {}) {
       );
     }
 
+    // Create the runtime attack plan.
+    const plans =
+      createAttackPlan(
+        findings,
+        attackTargetUrl
+      );
+
+    createEvent(
+      events,
+      'attack',
+      'success',
+      `${plans.length} runtime validation plan(s) created.`
+    );
+
+    // Execute the validation attacks.
 const attackExecution =
   await Promise.race([
     runAttacks({
       networkName:
         network.name,
+
       containerName:
         `sentinelai-attacker-${sandboxId}`,
+
       findings,
+
       plans,
+
       targetUrl:
-        mode ===
-        'project-validation'
-          ? runtimeTarget
-          : 'http://target:8080',
+        mode === 'simulation'
+          ? 'http://target:8080'
+          : runtimeTarget,
+
+      projectValidation:
+        mode === 'project-validation',
     }),
 
     new Promise(
@@ -331,10 +343,11 @@ const attackExecution =
     ),
   ]);
 
+    // Normalize collected attack evidence.
     const attacks =
-    normalizeEvidence(
+      normalizeEvidence(
         attackExecution.attacks
-    );
+      );
 
     containers.attacker =
       attackExecution.container;
@@ -346,6 +359,7 @@ const attackExecution =
       `${attacks.length} validation attack(s) completed.`
     );
 
+    // Generate validation verdicts.
     const validations =
       validateAttacks(
         findings,
@@ -359,8 +373,31 @@ const attackExecution =
       'Validation evidence normalized and verdicts generated.'
     );
 
+    // Build the final sandbox report.
     const finishedAt =
       new Date().toISOString();
+
+    const reportTarget =
+      mode === 'project-validation'
+        ? {
+            name:
+              'Local Project Runtime',
+            url:
+              runtimeTarget,
+            containerId:
+              '',
+            status:
+              'running',
+          }
+        : buildTargetInfo(
+            {
+              container:
+                target,
+              browserUrl:
+                targetBrowserUrl,
+            },
+            `sentinelai-target-${sandboxId}`
+          );
 
     const report =
       buildReport({
@@ -369,21 +406,7 @@ const attackExecution =
         startedAt,
         finishedAt,
         target:
-          mode ===
-          'project-validation'
-            ? {
-                name:
-                  'Local Project Runtime',
-                url:
-                  runtimeTarget,
-                containerId: '',
-                status:
-                  'running',
-              }
-            : buildTargetInfo(
-                target,
-                `sentinelai-target-${sandboxId}`
-              ),
+          reportTarget,
         containers,
         events,
         attacks,
@@ -403,6 +426,7 @@ const attackExecution =
 
     return report;
   } catch (error) {
+    // Record sandbox failure.
     createEvent(
       events,
       'initialization',
@@ -414,6 +438,7 @@ const attackExecution =
 
     throw error;
   } finally {
+    // Clean up sandbox resources.
     if (containers.attacker) {
       await removeContainer(
         containers.attacker

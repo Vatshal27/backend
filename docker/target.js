@@ -19,6 +19,7 @@ function generateTargetApplication(
     routes.push(`
   if (url.pathname === '/search') {
     const query = url.searchParams.get('q') || '';
+
     const simulatedQuery =
       "SELECT * FROM users WHERE name = '" + query + "'";
 
@@ -161,11 +162,10 @@ function html(res, status, body) {
 
 const server = http.createServer(
   (req, res) => {
-    const url =
-      new URL(
-        req.url,
-        'http://target'
-      );
+    const url = new URL(
+      req.url,
+      'http://target'
+    );
 
     if (url.pathname === '/health') {
       return json(res, 200, {
@@ -201,6 +201,7 @@ async function createTarget(
   const container =
     await docker.createContainer({
       name: containerName,
+
       Image: TARGET_IMAGE,
 
       Env: [
@@ -216,19 +217,47 @@ async function createTarget(
         'echo "$TARGET_CODE" | base64 -d > /tmp/target.js && node /tmp/target.js',
       ],
 
+      ExposedPorts: {
+        '8080/tcp': {},
+      },
+
       HostConfig: {
         NetworkMode: networkName,
+
+        /*
+         * Bind the simulation only to localhost.
+         *
+         * HostPort "" means Docker selects
+         * an available host port automatically.
+         */
+        PortBindings: {
+          '8080/tcp': [
+            {
+              HostIp: '127.0.0.1',
+              HostPort: '',
+            },
+          ],
+        },
+
         Memory:
           SANDBOX_LIMITS.memory,
+
         NanoCpus:
           SANDBOX_LIMITS.nanoCpus,
+
         PidsLimit:
           SANDBOX_LIMITS.pidsLimit,
-        CapDrop: ['ALL'],
+
+        CapDrop: [
+          'ALL',
+        ],
+
         SecurityOpt: [
           'no-new-privileges:true',
         ],
+
         ReadonlyRootfs: true,
+
         Tmpfs: {
           '/tmp':
             'rw,noexec,nosuid,size=16m',
@@ -238,7 +267,9 @@ async function createTarget(
       NetworkingConfig: {
         EndpointsConfig: {
           [networkName]: {
-            Aliases: ['target'],
+            Aliases: [
+              'target',
+            ],
           },
         },
       },
@@ -246,7 +277,37 @@ async function createTarget(
 
   await container.start();
 
-  return container;
+  /*
+   * Docker assigns the host port after the
+   * container starts.
+   */
+  const inspection =
+    await container.inspect();
+
+  const bindings =
+    inspection.NetworkSettings?.Ports?.[
+      '8080/tcp'
+    ];
+
+  if (
+    !bindings ||
+    !bindings.length ||
+    !bindings[0].HostPort
+  ) {
+    throw new Error(
+      'Docker did not assign a host port to the simulation target.'
+    );
+  }
+
+  const hostPort =
+    bindings[0].HostPort;
+
+  return {
+    container,
+    hostPort,
+    browserUrl:
+      `http://localhost:${hostPort}`,
+  };
 }
 
 async function waitForTarget(
@@ -289,6 +350,7 @@ req.setTimeout(
 );
 `,
           ],
+
           AttachStdout: true,
           AttachStderr: true,
         });
@@ -335,19 +397,33 @@ req.setTimeout(
 }
 
 function buildTargetInfo(
-  container,
+  target,
   containerName
 ) {
   return {
     name:
       'SentinelAI Vulnerable Target',
+
     url:
-      'http://target:8080',
+      target.browserUrl,
+
     containerId:
-      container.id,
+      target.container.id,
+
     status:
       'running',
+
     containerName,
+
+    /*
+     * Internal Docker URL remains separate
+     * from the browser-facing URL.
+     */
+    internalUrl:
+      'http://target:8080',
+
+    browserUrl:
+      target.browserUrl,
   };
 }
 
