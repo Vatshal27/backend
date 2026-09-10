@@ -166,7 +166,6 @@ async function runSandbox(options = {}) {
       : null;
 
   try {
-    // Initialize the sandbox.
     createEvent(
       events,
       'initialization',
@@ -205,7 +204,6 @@ async function runSandbox(options = {}) {
       'Required sandbox images are available.'
     );
 
-    // Create the validator network.
     network =
       await createNetwork(
         `sentinelai-${sandboxId}`,
@@ -224,7 +222,6 @@ async function runSandbox(options = {}) {
         : 'Isolated validator network created.'
     );
 
-    // Start the target before creating the attack plan.
     let attackTargetUrl;
 
     if (mode === 'simulation') {
@@ -292,7 +289,6 @@ async function runSandbox(options = {}) {
       );
     }
 
-    // Create the runtime attack plan.
     const plans =
       createAttackPlan(
         findings,
@@ -306,44 +302,41 @@ async function runSandbox(options = {}) {
       `${plans.length} runtime validation plan(s) created.`
     );
 
-    // Execute the validation attacks.
-const attackExecution =
-  await Promise.race([
-    runAttacks({
-      networkName:
-        network.name,
+    const attackExecution =
+      await Promise.race([
+        runAttacks({
+          networkName:
+            network.name,
 
-      containerName:
-        `sentinelai-attacker-${sandboxId}`,
+          containerName:
+            `sentinelai-attacker-${sandboxId}`,
 
-      findings,
+          findings,
+          plans,
 
-      plans,
+          targetUrl:
+            mode === 'simulation'
+              ? 'http://target:8080'
+              : runtimeTarget,
 
-      targetUrl:
-        mode === 'simulation'
-          ? 'http://target:8080'
-          : runtimeTarget,
+          projectValidation:
+            mode === 'project-validation',
+        }),
 
-      projectValidation:
-        mode === 'project-validation',
-    }),
+        new Promise(
+          (_, reject) =>
+            setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    'Sandbox validation timed out.'
+                  )
+                ),
+              SANDBOX_TIMEOUT
+            )
+        ),
+      ]);
 
-    new Promise(
-      (_, reject) =>
-        setTimeout(
-          () =>
-            reject(
-              new Error(
-                'Sandbox validation timed out.'
-              )
-            ),
-          SANDBOX_TIMEOUT
-        )
-    ),
-  ]);
-
-    // Normalize collected attack evidence.
     const attacks =
       normalizeEvidence(
         attackExecution.attacks
@@ -359,7 +352,6 @@ const attackExecution =
       `${attacks.length} validation attack(s) completed.`
     );
 
-    // Generate validation verdicts.
     const validations =
       validateAttacks(
         findings,
@@ -373,7 +365,6 @@ const attackExecution =
       'Validation evidence normalized and verdicts generated.'
     );
 
-    // Build the final sandbox report.
     const finishedAt =
       new Date().toISOString();
 
@@ -426,7 +417,6 @@ const attackExecution =
 
     return report;
   } catch (error) {
-    // Record sandbox failure.
     createEvent(
       events,
       'initialization',
@@ -438,7 +428,6 @@ const attackExecution =
 
     throw error;
   } finally {
-    // Clean up sandbox resources.
     if (containers.attacker) {
       await removeContainer(
         containers.attacker
