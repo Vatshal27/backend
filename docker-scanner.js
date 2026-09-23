@@ -754,15 +754,10 @@ function extractScannerResult(logs) {
             .trim();
 
     jsonText =
-        jsonText.replace(
-            /^@/,
-            ''
-        ).trim();
+        jsonText.replace(/^@/, '').trim();
 
     try {
-        return JSON.parse(
-            jsonText
-        );
+        return JSON.parse(jsonText);
     } catch (error) {
         console.error(
             '[docker-scanner] Result JSON parse failed:',
@@ -777,7 +772,6 @@ function extractScannerResult(logs) {
         return null;
     }
 }
-
 function attachCodeContext(
     findings,
     files
@@ -924,29 +918,19 @@ function attachCodeContext(
     );
 }
 
-async function runStaticAnalysis(
-    filesOrPath
-) {
-    if (
-        !Array.isArray(
-            filesOrPath
-        )
-    ) {
+async function runStaticAnalysis(files) {
+    if (!Array.isArray(files)) {
         return [];
     }
 
     console.log(
-        `[docker-scanner] Received ${filesOrPath.length} workspace files`
+        `[docker-scanner] Received ${files.length} workspace files`
     );
 
     const filteredFiles =
-        filterSourceFiles(
-            filesOrPath
-        );
+        filterSourceFiles(files);
 
-    if (
-        filteredFiles.length === 0
-    ) {
+    if (filteredFiles.length === 0) {
         console.log(
             '[docker-scanner] No relevant source files to scan'
         );

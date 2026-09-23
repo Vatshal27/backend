@@ -155,23 +155,19 @@ app.post(
         );
 
         try {
-            let staticFindings = [];
+            const files =
+                Array.isArray(req.body?.files)
+                    ? req.body.files
+                    : [];
 
-            if (
-                Array.isArray(
-                    req.body?.files
-                )
-            ) {
-                staticFindings =
-                    await runStaticAnalysis(
-                        req.body.files
-                    );
-            } else {
-                staticFindings =
-                    await runStaticAnalysis(
-                        req.body?.projectPath || '.'
-                    );
-            }
+            console.log(
+                `[server] Received ${files.length} files from VS Code`
+            );
+
+            const staticFindings =
+                await runStaticAnalysis(
+                    files
+                );
 
             console.log(
                 `[server] Static findings: ${staticFindings.length}`
@@ -180,34 +176,28 @@ app.post(
             const findings =
                 await analyzeFindings(
                     staticFindings,
-                    req.body?.files
+                    files
                 );
 
             return res.json({
                 findings,
                 staticFindings,
-                filesScanned:
-                    Array.isArray(
-                        req.body?.files
-                    )
-                        ? req.body.files.length
-                        : 0,
+                filesScanned: files.length,
                 model: MODEL,
             });
         } catch (error) {
             console.error(
-                '[server] Error:',
-                getErrorMessage(error)
+                '[server] Analysis failed:',
+                error
             );
 
             return res.status(500).json({
                 error: 'Analysis failed',
-                detail: getErrorMessage(error),
+                detail: error.message,
             });
         }
     }
 );
-
 app.post(
     '/sandbox/run',
     async (req, res) => {
