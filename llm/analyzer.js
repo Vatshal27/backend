@@ -3,312 +3,344 @@
 const { buildSecurityPrompt } = require('./prompt-builder');
 const { askOllama } = require('./ollama');
 
-const VALID_ATTACK_TYPES = [
-    'sqli', 'xss', 'cmdi', 'path_traversal',
-    'auth_bypass', 'code_injection', 'ssrf', 'crypto', 'other',
-];
+const {
+    normaliseFinding,
+    parseFindings,
+} = require('./parser');
 
-const BATCH_SIZE = 4;
+const {
+    filterSecurityFindings,
+    deduplicateFindings,
+} = require('./filters');
 
-/**
- * Normalize a single finding returned by the LLM into the
- * shape the VS Code extension and sandbox expect.
- */
-function normaliseFinding(finding, index, staticFinding = {}) {
-    let attackType = String(finding.attackType || staticFinding.attackType || 'other').toLowerCase();
-    if (!VALID_ATTACK_TYPES.includes(attackType)) {
-        attackType = 'other';
-    }
+const {
+    filterSourceFiles,
+} = require('../docker-scanner');
 
-    let attackPayloads = [];
-    if (Array.isArray(finding.attackPayloads)) {
-        attackPayloads = finding.attackPayloads
-            .map(p => String(p))
-            .filter(p => p.trim());
-    }
+const FILE_BATCH_SIZE = 3;
+const CONCURRENCY = 1;
+const LLM_ENABLED =
+    String(process.env.LLM_ENABLED || 'false').toLowerCase() === 'true';
 
-    return {
-        id: String(finding.id || staticFinding.id || `finding-${index + 1}`),
-
-        type: String(
-            finding.type ||
-            finding.vulnerability ||
-            staticFinding.type ||
-            staticFinding.vulnerability ||
-            'Security Issue'
-        ),
-
-        severity: finding.severity || staticFinding.severity || 'Medium',
-
-        file: String(finding.file || staticFinding.file || 'Unknown'),
-
-        line: String(finding.line || staticFinding.line || ''),
-
-        explanation: String(
-            finding.explanation ||
-            finding.fixExplanation ||
-            staticFinding.message ||
-            'Security issue detected'
-        ),
-
-        attackStory: Array.isArray(finding.attackStory) && finding.attackStory.length > 0
-            ? finding.attackStory
-            : [
-                `Step 1: Identify issue in ${finding.file || staticFinding.file || 'file'} at line ${finding.line || staticFinding.line || ''}`,
-                `Step 2: Craft exploit payload for ${finding.type || staticFinding.type || 'vulnerability'}`
-            ],
-
-        fix: String(
-            finding.fix ||
-            finding.fixExplanation ||
-            'Review code and sanitize input or update dependencies.'
-        ),
-
-        attackType,
-
-        attackPayloads,
-
-        attackScript: String(finding.attackScript || ''),
-
-        vulnerableCode: String(finding.vulnerableCode || staticFinding.codeContext || ''),
-
-        fixedCode: String(finding.fixedCode || ''),
-    };
+function normalizePath(filePath) {
+    return String(filePath || '')
+        .replace(/\\/g, '/')
+        .replace(/^\/+/, '')
+        .toLowerCase();
 }
 
-/**
- * Attempt to repair or extract valid JSON from a raw string that may be malformed or truncated.
- */
-function repairAndParseJSON(raw) {
-    let cleaned = String(raw)
-        .replace(/```json/gi, '')
-        .replace(/```/g, '')
-        .trim();
+function getFileNames(filePath) {
+    const normalized =
+        normalizePath(filePath);
 
-    // 1. Try direct JSON.parse
-    try {
-        return JSON.parse(cleaned);
-    } catch {
-        // Direct parse failed, proceed to repair
-    }
-
-    // 2. Extract contents inside "findings": [ ... ] if present
-    const findingsMatch = cleaned.match(/"findings"\s*:\s*\[([\s\S]*)/);
-    let jsonContent = findingsMatch ? findingsMatch[1] : cleaned;
-
-    // 3. Extract all completed JSON objects {...} inside the text
-    const extractedObjects = [];
-    let depth = 0;
-    let inString = false;
-    let escapeNext = false;
-    let objectStart = -1;
-
-    for (let i = 0; i < jsonContent.length; i++) {
-        const char = jsonContent[i];
-
-        if (escapeNext) {
-            escapeNext = false;
-            continue;
-        }
-
-        if (char === '\\' && inString) {
-            escapeNext = true;
-            continue;
-        }
-
-        if (char === '"') {
-            inString = !inString;
-            continue;
-        }
-
-        if (!inString) {
-            if (char === '{') {
-                if (depth === 0) {
-                    objectStart = i;
-                }
-                depth++;
-            } else if (char === '}') {
-                depth--;
-                if (depth === 0 && objectStart !== -1) {
-                    const objStr = jsonContent.slice(objectStart, i + 1);
-                    try {
-                        extractedObjects.push(JSON.parse(objStr));
-                    } catch {
-                        // Skip malformed object
-                    }
-                    objectStart = -1;
-                }
-            }
-        }
-    }
-
-    if (extractedObjects.length > 0) {
-        return { findings: extractedObjects };
-    }
-
-    // 4. Try closing unclosed strings/brackets
-    let repaired = cleaned;
-    repaired = repaired.replace(/,\s*"[^"]*"\s*:\s*"[^"]*$/g, '');
-    repaired = repaired.replace(/,\s*"[^"]*"\s*:\s*$/g, '');
-    repaired = repaired.replace(/,\s*$/g, '');
-
-    let openBraces = 0;
-    let openBrackets = 0;
-    inString = false;
-    escapeNext = false;
-
-    for (let i = 0; i < repaired.length; i++) {
-        const char = repaired[i];
-        if (escapeNext) { escapeNext = false; continue; }
-        if (char === '\\' && inString) { escapeNext = true; continue; }
-        if (char === '"') { inString = !inString; continue; }
-        if (!inString) {
-            if (char === '{') openBraces++;
-            if (char === '}') openBraces--;
-            if (char === '[') openBrackets++;
-            if (char === ']') openBrackets--;
-        }
-    }
-
-    if (inString) {
-        repaired += '"';
-    }
-
-    while (openBraces > 0) {
-        repaired += '}';
-        openBraces--;
-    }
-    while (openBrackets > 0) {
-        repaired += ']';
-        openBrackets--;
-    }
-
-    try {
-        return JSON.parse(repaired);
-    } catch {
-        return null;
-    }
+    return [
+        normalized,
+        normalized.split('/').pop(),
+    ].filter(Boolean);
 }
 
-/**
- * Parse the raw LLM response string into a normalized array of findings.
- */
-function parseFindings(raw, staticBatch = []) {
-    const parsed = repairAndParseJSON(raw);
-
-    let rawFindings = [];
-    if (Array.isArray(parsed)) {
-        rawFindings = parsed;
-    } else if (parsed && Array.isArray(parsed.findings)) {
-        rawFindings = parsed.findings;
+function findingBelongsToFiles(
+    finding,
+    files
+) {
+    if (!finding?.file) {
+        return false;
     }
 
-    const normalized = [];
-    const maxLen = Math.max(rawFindings.length, staticBatch.length);
+    const findingNames =
+        getFileNames(finding.file);
 
-    for (let i = 0; i < maxLen; i++) {
-        const rawFinding = rawFindings[i] || {};
-        const staticFinding = staticBatch[i] || {};
+    return files.some(file => {
+        const fileNames =
+            getFileNames(file.path);
 
-        if (Object.keys(rawFinding).length > 0 || Object.keys(staticFinding).length > 0) {
-            normalized.push(normaliseFinding(rawFinding, i, staticFinding));
-        }
-    }
-
-    return normalized;
+        return findingNames.some(
+            findingName =>
+                fileNames.includes(
+                    findingName
+                )
+        );
+    });
 }
 
-/**
- * Analyze a single batch of findings using Ollama.
- */
-async function analyzeBatch(batch, batchIndex, totalBatches) {
+function createFileBatches(files) {
+    const batches = [];
+
+    for (
+        let i = 0;
+        i < files.length;
+        i += FILE_BATCH_SIZE
+    ) {
+        batches.push(
+            files.slice(
+                i,
+                i + FILE_BATCH_SIZE
+            )
+        );
+    }
+
+    return batches;
+}
+
+function createAnalysisBatches(
+    files,
+    findings
+) {
+    const fileBatches =
+        createFileBatches(files);
+
+    return fileBatches.map(
+        batchFiles => {
+            const batchFindings =
+                findings.filter(
+                    finding =>
+                        findingBelongsToFiles(
+                            finding,
+                            batchFiles
+                        )
+                );
+
+            return {
+                files: batchFiles,
+                findings: batchFindings,
+            };
+        }
+    );
+}
+
+async function analyzeBatch(
+    batch,
+    batchIndex,
+    totalBatches
+) {
     console.log(
-        `[LLM] Processing batch ${batchIndex + 1}/${totalBatches} (${batch.length} findings)`
+        `[LLM] Processing batch ${
+            batchIndex + 1
+        }/${totalBatches} (` +
+        `${batch.files.length} files, ` +
+        `${batch.findings.length} static findings)`
     );
 
-    const prompt = buildSecurityPrompt(batch);
+    const prompt =
+        buildSecurityPrompt({
+            findings: batch.findings,
+            files: batch.files,
+        });
 
     try {
-        const raw = await askOllama(prompt);
-        return parseFindings(raw, batch);
+        const raw =
+            await askOllama(prompt);
+
+        return parseFindings(
+            raw,
+            batch.findings
+        );
     } catch (err) {
         console.error(
-            `[LLM] Batch ${batchIndex + 1} failed: ${err.message}. Falling back to static findings normalization.`
+            `[LLM] Batch ${
+                batchIndex + 1
+            } failed: ${
+                err.message
+            }. Falling back to static findings normalization.`
         );
-        return batch.map((sf, idx) => normaliseFinding({}, idx, sf));
+
+        return batch.findings.map(
+            (finding, index) =>
+                normaliseFinding(
+                    {},
+                    index,
+                    finding
+                )
+        );
     }
 }
 
-/**
- * Build synthetic "targets" from raw source files so the LLM
- * can perform a full AI security audit even when SAST returns 0 findings.
- */
-function buildTargetsFromFiles(files) {
-    if (!Array.isArray(files) || files.length === 0) {
-        return [];
-    }
+async function analyzeFindings(
+    staticFindings,
+    sourceFiles
+) {
+if (!LLM_ENABLED) {
+    console.log(
+        '[LLM] Disabled. Using static findings only.'
+    );
 
-    return files.map((f, i) => ({
-        id: `ai-audit-${i + 1}`,
-        type: 'AI Security Audit',
-        severity: 'Medium',
-        file: f.path || 'Unknown',
-        line: '',
-        message: 'Full AI-powered security audit of this file.',
-        codeContext: (f.code || '').slice(0, 3000),
-    }));
+    return Array.isArray(staticFindings)
+        ? deduplicateFindings(
+            staticFindings
+        )
+        : [];
 }
+    let findings =
+        Array.isArray(
+            staticFindings
+        )
+            ? staticFindings
+            : [];
 
-/**
- * Run the full LLM analysis pipeline with batching to avoid token truncation:
- *   static findings → batch prompts → Ollama → parsed & normalized findings
- *
- * If staticFindings is empty but sourceFiles are provided, builds synthetic
- * targets from the source files to perform an AI-only code audit.
- */
-async function analyzeFindings(staticFindings, sourceFiles) {
-    let targetFindings = staticFindings;
+    const files =
+        filterSourceFiles(
+            Array.isArray(sourceFiles)
+                ? sourceFiles
+                : []
+        );
 
-    // When SAST tools found nothing, run AI audit directly on source files
-    if ((!Array.isArray(targetFindings) || targetFindings.length === 0) && Array.isArray(sourceFiles) && sourceFiles.length > 0) {
-        console.log('[LLM] SAST found 0 issues — running AI-only security audit on source files');
-        targetFindings = buildTargetsFromFiles(sourceFiles);
+    console.log(
+        `[LLM] Source files after filtering: ${files.length}`
+    );
+
+    if (findings.length > 0) {
+        console.log(
+            `[LLM] Static analysis returned ${
+                findings.length
+            } findings`
+        );
+
+        findings =
+            filterSecurityFindings(
+                findings
+            );
+
+        findings =
+            deduplicateFindings(
+                findings
+            );
+
+        console.log(
+            `[LLM] Security findings after filtering: ${
+                findings.length
+            }`
+        );
+
+    } else {
+        console.log(
+            '[LLM] Static analysis returned no findings'
+        );
     }
 
-    if (!Array.isArray(targetFindings) || targetFindings.length === 0) {
-        return [];
+    if (files.length === 0) {
+        if (findings.length === 0) {
+            console.log(
+                '[LLM] No source files or findings available for AI analysis'
+            );
+
+            return [];
+        }
+
+        console.log(
+            '[LLM] No source files available; analyzing static findings only'
+        );
+
+        const result =
+            await analyzeBatch(
+                {
+                    files: [],
+                    findings,
+                },
+                0,
+                1
+            );
+
+        return deduplicateFindings(
+            result
+        );
     }
 
     console.log(
-        `[LLM] Preparing ${targetFindings.length} targets for AI analysis`
+        `[LLM] AI will analyze ${
+            files.length
+        } source files and ${
+            findings.length
+        } static findings`
     );
 
-    const batches = [];
-    for (let i = 0; i < targetFindings.length; i += BATCH_SIZE) {
-        batches.push(targetFindings.slice(i, i + BATCH_SIZE));
-    }
+    const batches =
+        createAnalysisBatches(
+            files,
+            findings
+        );
+
+    console.log(
+        `[LLM] Created ${
+            batches.length
+        } AI source batches`
+    );
 
     const allFindings = [];
 
-    for (let i = 0; i < batches.length; i++) {
-        const batchResults = await analyzeBatch(batches[i], i, batches.length);
-        allFindings.push(...batchResults);
+    for (
+        let i = 0;
+        i < batches.length;
+        i += CONCURRENCY
+    ) {
+        const currentBatches =
+            batches.slice(
+                i,
+                i + CONCURRENCY
+            );
+
+        console.log(
+            `[LLM] Running ${
+                currentBatches.length
+            } batch(es)`
+        );
+
+        const results =
+            await Promise.all(
+                currentBatches.map(
+                    (
+                        batch,
+                        offset
+                    ) =>
+                        analyzeBatch(
+                            batch,
+                            i + offset,
+                            batches.length
+                        )
+                )
+            );
+
+        for (
+            const batchResults
+            of results
+        ) {
+            allFindings.push(
+                ...batchResults
+            );
+        }
     }
 
+    const finalFindings =
+        deduplicateFindings(
+            allFindings
+        );
+
     console.log(
-        `[LLM] Parsed total of ${allFindings.length} findings from LLM`
+        `[LLM] Parsed total of ${
+            finalFindings.length
+        } findings from AI analysis`
     );
 
-    const withPayloads = allFindings.filter(f => f.attackPayloads.length > 0);
+    const withPayloads =
+        finalFindings.filter(
+            finding =>
+                Array.isArray(
+                    finding.attackPayloads
+                ) &&
+                finding.attackPayloads.length >
+                    0
+        );
+
     console.log(
-        `[LLM] ${withPayloads.length}/${allFindings.length} findings have attack payloads`
+        `[LLM] ${
+            withPayloads.length
+        }/${
+            finalFindings.length
+        } findings have attack payloads`
     );
 
-    return allFindings;
+    return finalFindings;
 }
 
 module.exports = {
     analyzeFindings,
-    buildTargetsFromFiles,
-    parseFindings,
 };

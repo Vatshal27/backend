@@ -63,6 +63,7 @@ function createSimulationPath(attackType, payload) {
       return `/ping?host=${encoded}`;
 
     case 'path_traversal':
+      
       return `/file?name=${encoded}`;
 
     case 'auth_bypass':

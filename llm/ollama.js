@@ -3,7 +3,16 @@
 const axios = require('axios');
 
 const OLLAMA_URL = 'http://localhost:11434/api/generate';
-const MODEL = 'qwen2.5:3b';
+const MODEL = 'phi3:mini';
+
+const OLLAMA_OPTIONS = {
+    temperature: 0.1,
+    num_predict: 700,
+    num_ctx: 4096,
+    top_p: 0.9,
+    top_k: 40,
+    repeat_penalty: 1.1,
+};
 
 async function askOllama(prompt) {
     console.log('[LLM] Sending request to Ollama...');
@@ -17,20 +26,13 @@ async function askOllama(prompt) {
                 prompt,
                 stream: false,
                 format: 'json',
-                options: {
-                    temperature: 0.1,
-                    num_predict: 4096,
-                    num_ctx: 4096,
-                },
-            },
-            {
-                timeout: 600_000,
+                keep_alive: '10m',
+                options: OLLAMA_OPTIONS,
             }
         );
-
         console.timeEnd('Ollama Response');
 
-        if (response.data.error) {
+        if (response.data?.error) {
             throw new Error(response.data.error);
         }
 

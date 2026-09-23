@@ -1,124 +1,261 @@
 'use strict';
 
-function buildSecurityPrompt(findings) {
-  if (!findings || findings.length === 0) {
+function buildSecurityPrompt(input) {
+    const data = Array.isArray(input) ? {
+        findings: input,
+        files: [],
+    } : {
+        findings: Array.isArray(input?.findings)
+            ? input.findings
+            : [],
+        files: Array.isArray(input?.files)
+            ? input.files
+            : [],
+    };
+
     return `
-You are a security engineer.
+You are a senior application security engineer performing a security audit.
 
-No vulnerabilities were detected.
+Your PRIMARY task is to independently inspect the supplied source code and identify
+REAL, security-relevant vulnerabilities.
 
-Return only:
+Static-analysis findings are supporting evidence only.
+They are NOT the complete list of vulnerabilities.
 
-{
- "findings":[]
-}
-`;
-  }
+You MUST:
+1. Analyze the source code yourself.
+2. Confirm genuine vulnerabilities found by static analysis.
+3. Reject false positives when the supplied code does not actually demonstrate
+   the claimed vulnerability.
+4. Discover additional vulnerabilities that static analysis missed.
+5. Only report vulnerabilities supported by concrete code evidence.
 
-  return `
-You are a senior offensive security engineer explaining vulnerabilities to developers.
+DO NOT report:
+- unused imports
+- unused variables
+- formatting problems
+- indentation
+- naming conventions
+- comments
+- documentation
+- ordinary code-quality issues
+- harmless syntax/style issues
+- theoretical vulnerabilities without evidence
+- generic recommendations without a concrete vulnerable code path
 
-You are given vulnerabilities detected by static analysis tools (or source files for audit),
-along with the actual source code that contains each issue.
+SECURITY AREAS TO CONSIDER:
 
-Your CRITICAL goal: Write explanations that a JUNIOR DEVELOPER can understand.
+- SQL injection
+- Cross-site scripting (XSS)
+- Command injection
+- Code injection
+- Path traversal
+- Authentication bypass
+- Authorization/access-control flaws
+- SSRF
+- Insecure deserialization
+- Hardcoded passwords, API keys, secrets, or tokens
+- Weak cryptography
+- Insecure file handling
+- Unsafe eval/exec usage
+- Unsafe subprocess execution
+- Prototype pollution
+- Open redirects
+- CSRF
+- JWT/session security
+- Insecure CORS configuration
+- XXE
+- LDAP injection
+- Template injection
+- Expression injection
+- Other concrete application-security vulnerabilities
 
-EXPLANATION RULES (MUST FOLLOW):
-- Start the explanation by quoting the EXACT line of vulnerable code.
-- Explain WHY that specific code is dangerous in plain English.
-- Describe what an attacker can actually DO with this vulnerability.
-- Give a real-world example: "If this app handles user signups, an attacker could..."
-- NEVER use vague phrases like "security issue detected" or "improper input handling".
-- Be SPECIFIC: name the exact variable, function, parameter, and endpoint involved.
+IMPORTANT:
+Do not assume that every dangerous-looking function is automatically vulnerable.
+
+For example:
+- eval() is security-relevant, but explain whether attacker-controlled data
+  can reach it.
+- exec() or subprocess execution is security-relevant, but determine whether
+  untrusted input reaches the command.
+- SQL construction is vulnerable when attacker-controlled data reaches the query
+  without safe parameterization.
+- Hardcoded credentials are vulnerabilities when actual credentials/secrets are
+  embedded in source.
+
+SOURCE ANALYSIS RULES:
+
+- Trace user-controlled input where possible.
+- Identify the source of the input.
+- Identify the vulnerable operation/sink.
+- Explain the path between source and sink.
+- Use the exact variable names, functions, endpoints and parameters from the code.
+- Do not invent endpoints, variables, database tables, parameters or functions.
+- Do not claim an exploit is possible when the supplied code does not support it.
+
+EXPLANATION RULES:
+
+For every confirmed vulnerability:
+
+- Start with the EXACT vulnerable code.
+- Explain why that specific code is dangerous.
+- Identify the attacker-controlled input.
+- Identify the vulnerable sink/operation.
+- Explain the real security impact.
+- Use language understandable to a junior developer.
+- Do not use vague statements such as "improper input handling".
+- Reference exact functions, variables, parameters and endpoints.
 
 ATTACK RULES:
-- Study the actual code context provided for each finding.
-- Generate payloads that match the exact parameter names, query structure,
-  function calls, and patterns used in the vulnerable code.
-- Do NOT use generic payloads. Tailor every exploit to the specific code.
-- If the code uses a specific variable name (e.g. req.query.email), your
-  payload must target that exact parameter.
 
-For each vulnerability provide ALL of these fields:
+Generate attacks only when the supplied code provides enough information.
 
-1. "explanation" — 3-5 sentences. Start with the exact vulnerable code, explain why
-   it is dangerous, and describe the real-world consequence for the application.
+Payloads MUST:
+- match the actual parameter names where known
+- match the actual endpoint where known
+- match the actual vulnerable operation
+- be derived from the supplied source code
+- avoid invented application details
 
-2. "attackStory" — Array of 3-5 step-by-step strings describing how a real attacker
-   would discover and exploit this. Each step must be concrete and reference the
-   actual code (e.g. "Step 1: Attacker notices /api/search endpoint accepts a 'q'
-   parameter that is directly concatenated into a SQL query at line 42").
+If the exact endpoint or parameter is not available in the source,
+do NOT invent one.
 
-3. "attackType" — One of: "sqli", "xss", "cmdi", "path_traversal", "auth_bypass",
-   "code_injection", "ssrf", "crypto", "other"
+For attack scripts:
+- Use curl, fetch, or Python requests.
+- Only provide a script when the supplied source provides enough information.
+- Use placeholders only when absolutely necessary.
+- Never claim a payload was successfully executed; describe it as a proof
+  of concept based on the code.
 
-4. "attackPayloads" — Array of 2-4 specific exploit strings/inputs that would
-   trigger THIS vulnerability in THIS code. Include exact input values.
+For each confirmed vulnerability return ALL fields:
 
-5. "attackScript" — A proof-of-concept (curl, fetch, or python requests) showing
-   exactly how an attacker would exploit THIS specific endpoint/function.
+1. "vulnerability"
+2. "severity"
+3. "file"
+4. "line"
+5. "explanation"
+6. "attackStory"
+7. "attackType"
+8. "attackPayloads"
+9. "attackScript"
+10. "vulnerableCode"
+11. "fixedCode"
+12. "fixExplanation"
 
-6. "vulnerableCode" — The exact vulnerable code snippet (copy from input context).
+SEVERITY:
 
-7. "fixedCode" — The corrected secure version of the same code snippet.
+Use only:
+- High
+- Medium
+- Low
 
-8. "fixExplanation" — 2-3 sentences explaining what the fix changes and WHY it
-   prevents the attack. Reference the specific function/method used in the fix.
+Use High when the vulnerability can reasonably lead to:
+- arbitrary code execution
+- command execution
+- authentication bypass
+- major unauthorized data access
+- database compromise
+- severe remote compromise
+
+Use Medium for vulnerabilities with meaningful but more limited impact.
+
+Use Low for lower-impact security weaknesses.
+
+ATTACK TYPES:
+
+Use exactly one of:
+- "sqli"
+- "xss"
+- "cmdi"
+- "path_traversal"
+- "auth_bypass"
+- "code_injection"
+- "ssrf"
+- "crypto"
+- "other"
+
+FIX RULES:
+
+The fixedCode must be a secure version of the SAME code.
+
+Do not rewrite unrelated parts of the application.
+
+Examples:
+- SQL injection → parameterized query
+- Command injection → safe argument arrays / avoid shell interpretation
+- XSS → contextual output encoding/sanitization
+- Path traversal → canonicalization + allowlisted paths
+- eval/exec → remove dynamic execution or use a safe alternative
+- Hardcoded secret → environment variable / secret manager
+- Weak crypto → appropriate modern cryptographic primitive
+
+FIX EXPLANATION:
+
+Explain:
+1. What changed.
+2. Why the change blocks the attack.
+3. Which specific function/method/security mechanism provides the protection.
+
+FALSE POSITIVES:
+
+If a supplied static finding is not actually supported by the source code,
+do NOT return it as a vulnerability.
+
+ADDITIONAL VULNERABILITIES:
+
+If you discover a vulnerability that was NOT present in the static-analysis
+findings, return it normally.
+
+The AI is expected to find vulnerabilities missed by static analysis.
+
+OUTPUT RULE:
 
 Return ONLY valid JSON.
 
-Format:
+Do not include:
+- Markdown
+- code fences
+- commentary
+- explanations outside JSON
+
+JSON FORMAT:
 
 {
- "findings":[
-
-  {
-   "vulnerability":"SQL Injection in user search endpoint",
-   "severity":"High",
-   "file":"routes/search.js",
-   "line":"42",
-
-   "explanation":"The code at line 42 builds a SQL query by directly concatenating req.query.q into the string: db.query('SELECT * FROM users WHERE name = ' + req.query.q). This means any user input is executed as raw SQL. An attacker can inject SQL commands through the search box to dump the entire users table, bypass authentication, or delete data. If this endpoint is public-facing, the entire database is at risk.",
-
-   "attackStory":[
-      "Step 1: Attacker opens browser DevTools and notices GET /api/search?q=test returns user data",
-      "Step 2: Attacker modifies the q parameter to q=' OR '1'='1 and observes all users are returned",
-      "Step 3: Attacker escalates by injecting q='; DROP TABLE users; -- to destroy the users table",
-      "Step 4: Attacker exfiltrates sensitive data using UNION SELECT to read password hashes"
-   ],
-
-   "attackType":"sqli",
-
-   "attackPayloads":[
-      "' OR '1'='1' --",
-      "'; DROP TABLE users; --"
-   ],
-
-   "attackScript":"curl -X GET 'http://target/api/search?q=%27%20OR%20%271%27%3D%271'",
-
-   "vulnerableCode":"db.query('SELECT * FROM users WHERE name = ' + req.query.q)",
-
-   "fixedCode":"db.query('SELECT * FROM users WHERE name = ?', [req.query.q])",
-
-   "fixExplanation":"Changed from string concatenation to a parameterized query using placeholder '?'. The database driver now treats req.query.q as a data value, not executable SQL, which completely prevents SQL injection."
-
-  }
-
- ]
+  "findings": [
+    {
+      "vulnerability": "SQL Injection in user search",
+      "severity": "High",
+      "file": "routes/search.js",
+      "line": "42",
+      "explanation": "EXACT vulnerable code: ...",
+      "attackStory": [
+        "Step 1: ...",
+        "Step 2: ...",
+        "Step 3: ..."
+      ],
+      "attackType": "sqli",
+      "attackPayloads": [
+        "payload 1",
+        "payload 2"
+      ],
+      "attackScript": "curl ...",
+      "vulnerableCode": "exact source code",
+      "fixedCode": "secure replacement",
+      "fixExplanation": "..."
+    }
+  ]
 }
 
+STATIC ANALYSIS FINDINGS:
 
-INPUT SECURITY FINDINGS (with code context):
+${JSON.stringify(data.findings, null, 2)}
 
-${JSON.stringify(
-    findings,
-    null,
-    2
-  )}
+SOURCE FILES:
 
+${JSON.stringify(data.files, null, 2)}
 `;
 }
 
 module.exports = {
-  buildSecurityPrompt,
+    buildSecurityPrompt,
 };

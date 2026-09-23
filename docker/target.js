@@ -214,7 +214,7 @@ async function createTarget(
       Cmd: [
         'sh',
         '-c',
-        'echo "$TARGET_CODE" | base64 -d > /tmp/target.js && node /tmp/target.js',
+        'echo "$TARGET_CODE" | base64 -d | node',
       ],
 
       ExposedPorts: {

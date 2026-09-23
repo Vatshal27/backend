@@ -77,9 +77,8 @@ app.post(
     '/runtime/check',
     async (req, res) => {
         try {
-            const {
-                targetUrl,
-            } = req.body || {};
+            const targetUrl =
+                req.body?.targetUrl;
 
             if (!targetUrl) {
                 return res.status(400).json({
@@ -94,12 +93,12 @@ app.post(
                     targetUrl
                 );
 
-            res.json({
+            return res.json({
                 ok: true,
                 ...result,
             });
         } catch (error) {
-            res.status(400).json({
+            return res.status(400).json({
                 ok: false,
                 error:
                     error instanceof Error
@@ -113,19 +112,32 @@ app.post(
 app.get(
     '/health',
     async (_req, res) => {
+        const llmEnabled =
+            String(
+                process.env.LLM_ENABLED || 'false'
+            ).toLowerCase() === 'true';
+
+        if (!llmEnabled) {
+            return res.json({
+                status: 'ok',
+                model: MODEL,
+                ollama: 'disabled',
+            });
+        }
+
         try {
             await axios.get(
                 OLLAMA_TAGS_URL,
                 { timeout: 5000 }
             );
 
-            res.json({
+            return res.json({
                 status: 'ok',
                 model: MODEL,
                 ollama: 'connected',
             });
         } catch {
-            res.status(503).json({
+            return res.status(503).json({
                 status: 'error',
                 model: MODEL,
                 ollama: 'disconnected',
@@ -134,6 +146,7 @@ app.get(
     }
 );
 
+/* Analysis route is always available. */
 app.post(
     '/analyze-project',
     async (req, res) => {
@@ -146,7 +159,7 @@ app.post(
 
             if (
                 Array.isArray(
-                    req.body.files
+                    req.body?.files
                 )
             ) {
                 staticFindings =
@@ -156,7 +169,7 @@ app.post(
             } else {
                 staticFindings =
                     await runStaticAnalysis(
-                        req.body.projectPath || '.'
+                        req.body?.projectPath || '.'
                     );
             }
 
@@ -167,15 +180,15 @@ app.post(
             const findings =
                 await analyzeFindings(
                     staticFindings,
-                    req.body.files
+                    req.body?.files
                 );
 
-            res.json({
+            return res.json({
                 findings,
                 staticFindings,
                 filesScanned:
                     Array.isArray(
-                        req.body.files
+                        req.body?.files
                     )
                         ? req.body.files.length
                         : 0,
@@ -187,11 +200,9 @@ app.post(
                 getErrorMessage(error)
             );
 
-            res.status(500).json({
-                error:
-                    'Analysis failed',
-                detail:
-                    getErrorMessage(error),
+            return res.status(500).json({
+                error: 'Analysis failed',
+                detail: getErrorMessage(error),
             });
         }
     }
@@ -202,9 +213,8 @@ app.post(
     async (req, res) => {
         try {
             const findings =
-                req.body &&
                 Array.isArray(
-                    req.body.findings
+                    req.body?.findings
                 )
                     ? req.body.findings
                     : [];
@@ -226,8 +236,7 @@ app.post(
             }
 
             if (
-                mode ===
-                    'project-validation' &&
+                mode === 'project-validation' &&
                 !targetUrl
             ) {
                 return res.status(400).json({
@@ -243,9 +252,7 @@ app.post(
                     targetUrl,
                 });
 
-            return res.json(
-                report
-            );
+            return res.json(report);
         } catch (error) {
             console.error(
                 '[sandbox]',
@@ -281,9 +288,9 @@ app.post(
                     sandboxId
                 );
 
-            res.json(result);
+            return res.json(result);
         } catch (error) {
-            res.status(500).json({
+            return res.status(500).json({
                 error:
                     getErrorMessage(error),
             });
@@ -298,9 +305,9 @@ app.get(
             const result =
                 await checkDocker();
 
-            res.json(result);
+            return res.json(result);
         } catch (error) {
-            res.status(503).json({
+            return res.status(503).json({
                 error:
                     getErrorMessage(error),
             });
@@ -320,7 +327,13 @@ app.listen(
         );
 
         console.log(
-            '[server] Ollama must be running: ollama serve'
+            `[server] LLM: ${
+                String(
+                    process.env.LLM_ENABLED || 'false'
+                ).toLowerCase() === 'true'
+                    ? 'enabled'
+                    : 'disabled'
+            }`
         );
     }
 );

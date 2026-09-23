@@ -39,7 +39,7 @@ const SENSITIVE_PATTERNS = [
     
     // Database connection strings
     {
-        pattern: /(mongodb:\/\/|postgresql:\/\/|mysql:\/\/)[^:\/]+:[^@]+@/gi,
+        pattern: /(mongodb:\/\/|postgresql:\/\/|mysql:\/\/)[^:]+:[^@]+@/gi,
         placeholder: '$1REDACTED_USER:REDACTED_PASSWORD@'
     },
     
