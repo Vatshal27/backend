@@ -638,13 +638,14 @@ function detectEvidence(
     );
   }
 
-  if (attack.attackType === 'sqli') {
-    return (
-      /sql syntax|mysql|postgres|sqlite|database error|syntax error/i.test(
-        body
-      )
-    );
-  }
+if (attack.attackType === 'sqli') {
+  return (
+    /"vulnerable"[\t\n\r ]*:[\t\n\r ]*true/i.test(body) ||
+    /sql syntax|mysql|postgres|sqlite|database error|syntax error/i.test(
+      body
+    )
+  );
+}
 
   if (
     attack.attackType ===
@@ -930,9 +931,16 @@ async function main() {
   }
 
   process.stdout.write(
+    '__SENTINEL_ATTACK_RESULT_START__\n'
+  );
+
+  process.stdout.write(
     JSON.stringify(results)
   );
-}
+  
+  process.stdout.write(
+    '\n__SENTINEL_ATTACK_RESULT_END__\n'
+  );
 
 main().catch(error => {
   console.error(error);
@@ -1042,31 +1050,42 @@ async function runAttacks({
     );
   }
 
-  const start =
-    output.indexOf('[');
+const startMarker =
+  '__SENTINEL_ATTACK_RESULT_START__';
 
-  const end =
-    output.lastIndexOf(']');
+const endMarker =
+  '__SENTINEL_ATTACK_RESULT_END__';
 
-  if (
-    start === -1 ||
-    end === -1
-  ) {
-    throw new Error(
-      'Attack container returned invalid JSON.'
-    );
-  }
+const start =
+  output.indexOf(startMarker);
 
-  return {
-    container,
-    attacks:
-      JSON.parse(
-        output.slice(
-          start,
-          end + 1
-        )
-      ),
-  };
+const end =
+  output.indexOf(
+    endMarker,
+    start + startMarker.length
+  );
+
+if (
+  start === -1 ||
+  end === -1
+) {
+  throw new Error(
+    `Attack container returned invalid result markers: ${output}`
+  );
+}
+
+const jsonText =
+  output
+    .slice(
+      start + startMarker.length,
+      end
+    )
+    .trim();
+
+return {
+  container,
+  attacks: JSON.parse(jsonText),
+};
 }
 
 module.exports = {

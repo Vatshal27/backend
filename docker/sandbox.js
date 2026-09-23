@@ -212,8 +212,7 @@ async function runSandbox(options = {}) {
             mode === 'project-validation',
         }
       );
-
-    createEvent(
+console.log('[sandbox] Docker network:', network.id);    createEvent(
       events,
       'network',
       'success',
@@ -235,12 +234,11 @@ async function runSandbox(options = {}) {
         );
 
       const createdTarget =
-        await createTarget(
-          network.name,
-          `sentinelai-target-${sandboxId}`,
-          targetCode
-        );
-
+      await createTarget(
+        network.id,
+        `sentinelai-target-${sandboxId}`,
+        targetCode
+      );
       target =
         createdTarget.container;
 
@@ -305,8 +303,8 @@ async function runSandbox(options = {}) {
     const attackExecution =
       await Promise.race([
         runAttacks({
-          networkName:
-            network.name,
+        networkName:
+          network.id,
 
           containerName:
             `sentinelai-attacker-${sandboxId}`,

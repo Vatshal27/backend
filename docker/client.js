@@ -103,27 +103,16 @@ async function ensureImages(
   );
 }
 
-async function createNetwork(
-  name,
-  options = {}
-) {
-  const {
-    hostAccess = false,
-  } = options;
+async function createNetwork(name, options = {}) {
+  const { hostAccess = false } = options;
 
   return docker.createNetwork({
     Name: name,
-
     Driver: 'bridge',
-
-    Internal:
-      !hostAccess,
-
+    Internal: !hostAccess,
     CheckDuplicate: true,
-
     Options: {
-      'com.docker.network.bridge.enable_icc':
-        'false',
+      'com.docker.network.bridge.enable_icc': 'false',
     },
   });
 }
