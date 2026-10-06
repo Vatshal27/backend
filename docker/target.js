@@ -1,9 +1,7 @@
 'use strict';
-
 const {
   docker,
 } = require('./client');
-
 const {
   TARGET_IMAGE,
   TARGET_PORT,
@@ -15,146 +13,13 @@ const {
   SANDBOX_LIMITS,
   TARGET_HEALTH_TIMEOUT,
 } = require('./config');
-
 function generateTargetApplication(
   findings,
   categories
 ) {
-  const routes = [];
-
-  if (
-    categories.sqli.length > 0
-  ) {
-    routes.push(`
-  if (url.pathname === '/search') {
-    const query =
-      url.searchParams.get('q') || '';
-
-    const simulatedQuery =
-      "SELECT * FROM users WHERE name = '" +
-      query +
-      "'";
-
-    const injectionDetected =
-      query.includes("' OR ") ||
-      query.includes("'--") ||
-      query.includes("1=1");
-
-    return json(res, 200, {
-      query: simulatedQuery,
-      vulnerable: injectionDetected,
-      results: injectionDetected
-        ? users
-        : [],
-      finding: ${JSON.stringify(
-        categories.sqli[0].type ||
-        'SQL Injection'
-      )}
-    });
-  }`);
-  }
-
-  if (
-    categories.xss.length > 0
-  ) {
-    routes.push(`
-  if (url.pathname === '/greet') {
-    const name =
-      url.searchParams.get('name') ||
-      'World';
-
-    return html(
-      res,
-      200,
-      '<html><body>Hello ' +
-      name +
-      '</body></html>'
-    );
-  }`);
-  }
-
-  if (
-    categories.cmdi.length > 0
-  ) {
-    routes.push(`
-  if (url.pathname === '/ping') {
-    const host =
-      url.searchParams.get('host') ||
-      'localhost';
-
-    const suspicious =
-      host.includes(';') ||
-      host.includes('&&') ||
-      host.includes('|') ||
-      host.includes('$(');
-
-    return json(res, 200, {
-      vulnerable: suspicious,
-      simulatedCommand:
-        'ping -c 1 ' + host,
-      note:
-        'Command execution is disabled in this sandbox.'
-    });
-  }`);
-  }
-
-  if (
-    categories.path_traversal.length > 0
-  ) {
-    routes.push(`
-  if (url.pathname === '/file') {
-    const requested =
-      url.searchParams.get('name') ||
-      'public.txt';
-
-    const traversal =
-      requested.includes('..');
-
-    return json(res, 200, {
-      vulnerable: traversal,
-      requested,
-      content: traversal
-        ? 'SIMULATED_SECRET_VALUE'
-        : 'This is a public demonstration file.'
-    });
-  }`);
-  }
-
-  if (
-    categories.auth_bypass.length > 0
-  ) {
-    routes.push(`
-  if (url.pathname === '/admin') {
-    return json(res, 200, {
-      vulnerable: true,
-      message:
-        'Simulated protected administrator data',
-      users
-    });
-  }`);
-  }
-
-  if (
-    categories.code_injection.length > 0
-  ) {
-    routes.push(`
-  if (url.pathname === '/eval') {
-    const code =
-      url.searchParams.get('code') || '';
-
-    return json(res, 200, {
-      vulnerable: code.length > 0,
-      input: code,
-      note:
-        'Code execution is disabled in this sandbox.'
-    });
-  }`);
-  }
-
   return `
 const http = require('http');
 const { URL } = require('url');
-
 const users = [
   {
     id: 1,
@@ -169,59 +34,310 @@ const users = [
     role: 'user'
   }
 ];
-
-function json(res, status, body) {
-  res.writeHead(status, {
-    'Content-Type': 'application/json'
-  });
-
+function json(
+  res,
+  status,
+  body
+) {
+  res.writeHead(
+    status,
+    {
+      'Content-Type':
+        'application/json'
+    }
+  );
   res.end(
-    JSON.stringify(body)
+    JSON.stringify(
+      body
+    )
   );
 }
-
-function html(res, status, body) {
-  res.writeHead(status, {
-    'Content-Type':
-      'text/html; charset=utf-8'
-  });
-
-  res.end(body);
+function html(
+  res,
+  status,
+  body
+) {
+  res.writeHead(
+    status,
+    {
+      'Content-Type':
+        'text/html; charset=utf-8'
+    }
+  );
+  res.end(
+    body
+  );
 }
-
+function createIndexPage() {
+  return [
+    '<!doctype html>',
+    '<html>',
+    '<head>',
+    '<meta charset="utf-8">',
+    '<title>SentinelAI Safe Simulation Target</title>',
+    '</head>',
+    '<body>',
+    '<h1>SentinelAI Safe Simulation Target</h1>',
+    '<p>Controlled synthetic application for runtime scanner self-testing.</p>',
+    '<ul>',
+    '<li><a href="/search?q=test">Search fixture</a></li>',
+    '<li><a href="/greet?name=World">Greeting fixture</a></li>',
+    '<li><a href="/ping?host=localhost">Command fixture</a></li>',
+    '<li><a href="/file?name=public.txt">File fixture</a></li>',
+    '<li><a href="/admin">Admin fixture</a></li>',
+    '<li><a href="/eval?code=test">Code fixture</a></li>',
+    '</ul>',
+    '<form action="/search" method="GET">',
+    '<input name="q" value="test">',
+    '<button type="submit">Search</button>',
+    '</form>',
+    '<form action="/greet" method="GET">',
+    '<input name="name" value="World">',
+    '<button type="submit">Greet</button>',
+    '</form>',
+    '<form action="/ping" method="GET">',
+    '<input name="host" value="localhost">',
+    '<button type="submit">Ping</button>',
+    '</form>',
+    '<form action="/file" method="GET">',
+    '<input name="name" value="public.txt">',
+    '<button type="submit">File</button>',
+    '</form>',
+    '<form action="/eval" method="GET">',
+    '<input name="code" value="test">',
+    '<button type="submit">Evaluate</button>',
+    '</form>',
+    '</body>',
+    '</html>'
+  ].join('');
+}
 const server =
   http.createServer(
-    (req, res) => {
+    (
+      req,
+      res
+    ) => {
       const url =
         new URL(
           req.url,
           'http://${TARGET_HOST}'
         );
-
       if (
-        url.pathname === '/health'
+        url.pathname ===
+        '/health'
       ) {
         return json(
           res,
           200,
           {
-            status: 'ok'
+            status:
+              'ok',
+            service:
+              'sentinelai-safe-simulation'
           }
         );
       }
-
-      ${routes.join('\n')}
-
+      if (
+        url.pathname ===
+        '/'
+      ) {
+        return html(
+          res,
+          200,
+          createIndexPage()
+        );
+      }
+      if (
+        url.pathname ===
+        '/search'
+      ) {
+        const query =
+          url.searchParams.get(
+            'q'
+          ) || '';
+        const simulatedQuery =
+          "SELECT * FROM users WHERE name = '" +
+          query +
+          "'";
+        const injectionDetected =
+          query.includes(
+            "' OR "
+          ) ||
+          query.includes(
+            "'--"
+          ) ||
+          query.includes(
+            '1=1'
+          );
+        return json(
+          res,
+          200,
+          {
+            fixture:
+              'sqli',
+            vulnerable:
+              injectionDetected,
+            query:
+              simulatedQuery,
+            results:
+              injectionDetected
+                ? users
+                : []
+          }
+        );
+      }
+      if (
+        url.pathname ===
+        '/greet'
+      ) {
+        const name =
+          url.searchParams.get(
+            'name'
+          ) ||
+          'World';
+        return html(
+          res,
+          200,
+          '<html><body>Hello ' +
+          name +
+          '</body></html>'
+        );
+      }
+      if (
+        url.pathname ===
+        '/ping'
+      ) {
+        const host =
+          url.searchParams.get(
+            'host'
+          ) ||
+          'localhost';
+        const suspicious =
+          host.includes(
+            ';'
+          ) ||
+          host.includes(
+            '&&'
+          ) ||
+          host.includes(
+            '|'
+          ) ||
+          host.includes(
+            '$('
+          );
+        return json(
+          res,
+          200,
+          {
+            fixture:
+              'cmdi',
+            vulnerable:
+              suspicious,
+            simulatedCommand:
+              'ping -c 1 ' +
+              host,
+            simulatedOutput:
+              suspicious
+                ? 'uid=1000(sentinel) gid=1000(sentinel)'
+                : 'PING localhost',
+            note:
+              'No command is executed. This response is synthetic.'
+          }
+        );
+      }
+      if (
+        url.pathname ===
+        '/file'
+      ) {
+        const requested =
+          url.searchParams.get(
+            'name'
+          ) ||
+          'public.txt';
+        const traversal =
+          requested.includes(
+            '..'
+          );
+        return json(
+          res,
+          200,
+          {
+            fixture:
+              'path_traversal',
+            vulnerable:
+              traversal,
+            requested,
+            content:
+              traversal
+                ? 'SIMULATED_SECRET_VALUE'
+                : 'This is a public demonstration file.'
+          }
+        );
+      }
+      if (
+        url.pathname ===
+        '/admin'
+      ) {
+        return json(
+          res,
+          200,
+          {
+            fixture:
+              'auth_bypass',
+            vulnerable:
+              true,
+            message:
+              'Simulated protected administrator data',
+            users
+          }
+        );
+      }
+      if (
+        url.pathname ===
+        '/eval'
+      ) {
+        const code =
+          url.searchParams.get(
+            'code'
+          ) || '';
+        return json(
+          res,
+          200,
+          {
+            fixture:
+              'code_injection',
+            vulnerable:
+              code.length > 0,
+            input:
+              code,
+            simulatedEnvironment:
+              code.includes(
+                'process.env'
+              )
+                ? {
+                    NODE_ENV:
+                      'simulation',
+                    HOME:
+                      '/home/sentinel',
+                    PATH:
+                      '/usr/local/bin:/usr/bin'
+                  }
+                : null,
+            note:
+              'No code is executed. This response is synthetic.'
+          }
+        );
+      }
       return json(
         res,
         404,
         {
-          error: 'Not found'
+          error:
+            'Not found'
         }
       );
     }
   );
-
 server.listen(
   ${TARGET_PORT},
   '${TARGET_BIND_HOST}',
@@ -233,7 +349,6 @@ server.listen(
 );
 `;
 }
-
 async function createTarget(
   networkId,
   networkName,
@@ -244,69 +359,59 @@ async function createTarget(
     await docker.createContainer({
       name:
         containerName,
-
       Image:
         TARGET_IMAGE,
-
       Env: [
         `TARGET_CODE=${Buffer.from(
           targetCode,
           'utf8'
-        ).toString('base64')}`,
+        ).toString(
+          'base64'
+        )}`,
       ],
-
       Cmd: [
         'sh',
         '-c',
         'echo "$TARGET_CODE" | base64 -d | node',
       ],
-
       ExposedPorts: {
-        [`${TARGET_PORT}/tcp`]: {},
+        [`${TARGET_PORT}/tcp`]:
+          {},
       },
-
       HostConfig: {
         PortBindings: {
-          [`${TARGET_PORT}/tcp`]: [
-            {
-              HostIp:
-                TARGET_BROWSER_HOST ===
-                'localhost'
-                  ? '127.0.0.1'
-                  : TARGET_BROWSER_HOST,
-
-              HostPort:
-                '',
-            },
-          ],
+          [`${TARGET_PORT}/tcp`]:
+            [
+              {
+                HostIp:
+                  TARGET_BROWSER_HOST ===
+                  'localhost'
+                    ? '127.0.0.1'
+                    : TARGET_BROWSER_HOST,
+                HostPort:
+                  '',
+              },
+            ],
         },
-
         Memory:
           SANDBOX_LIMITS.memory,
-
         NanoCpus:
           SANDBOX_LIMITS.nanoCpus,
-
         PidsLimit:
           SANDBOX_LIMITS.pidsLimit,
-
         CapDrop: [
           'ALL',
         ],
-
         SecurityOpt: [
           'no-new-privileges:true',
         ],
-
         ReadonlyRootfs:
           true,
-
         Tmpfs: {
           '/tmp':
             'rw,noexec,nosuid,size=16m',
         },
       },
-
       NetworkingConfig: {
         EndpointsConfig: {
           [networkName]: {
@@ -317,57 +422,51 @@ async function createTarget(
         },
       },
     });
-
   await container.start();
-
   const inspection =
     await container.inspect();
-
   const bindings =
     inspection
       .NetworkSettings
       ?.Ports?.[
         `${TARGET_PORT}/tcp`
       ];
-
   if (
     !bindings ||
-    bindings.length === 0 ||
+    bindings.length ===
+      0 ||
     !bindings[0].HostPort
   ) {
     throw new Error(
       'Docker did not assign a host port to the simulation target.'
     );
   }
-
   const hostPort =
     Number(
-      bindings[0].HostPort
+      bindings[0]
+        .HostPort
     );
-
   return {
     container,
-
     hostPort,
-
     browserUrl:
       `http://${TARGET_BROWSER_HOST}:${hostPort}`,
-
     internalUrl:
       TARGET_INTERNAL_URL,
-
     healthUrl:
       TARGET_HEALTH_URL,
   };
 }
-
 async function waitForTarget(
   targetContainer,
-  timeoutMs = TARGET_HEALTH_TIMEOUT
+  timeoutMs =
+    TARGET_HEALTH_TIMEOUT
 ) {
-  const startedAt = Date.now();
+  const startedAt =
+    Date.now();
   while (
-    Date.now() - startedAt <
+    Date.now() -
+      startedAt <
     timeoutMs
   ) {
     try {
@@ -375,13 +474,17 @@ async function waitForTarget(
         await targetContainer.inspect();
       if (
         !containerState.State ||
-        !containerState.State.Running
+        !containerState.State
+          .Running
       ) {
         const logs =
           await targetContainer.logs({
-            stdout: true,
-            stderr: true,
-            tail: 100
+            stdout:
+              true,
+            stderr:
+              true,
+            tail:
+              100,
           });
         console.error(
           '[sandbox] Target container stopped unexpectedly.'
@@ -392,7 +495,9 @@ async function waitForTarget(
         );
         console.error(
           '[sandbox] Target logs:',
-          logs.toString('utf8')
+          logs.toString(
+            'utf8'
+          )
         );
         return false;
       }
@@ -404,7 +509,9 @@ async function waitForTarget(
             `
 const http=require('http');
 const req=http.get(
-  ${JSON.stringify(TARGET_HEALTH_URL)},
+  ${JSON.stringify(
+    TARGET_HEALTH_URL
+  )},
   res=>{
     res.resume();
     res.on(
@@ -432,26 +539,38 @@ req.setTimeout(
     process.exit(1);
   }
 );
-`
+`,
           ],
-          AttachStdout: true,
-          AttachStderr: true
+          AttachStdout:
+            true,
+          AttachStderr:
+            true,
         });
       const stream =
         await exec.start({
-          hijack: true,
-          stdin: false
+          hijack:
+            true,
+          stdin:
+            false,
         });
       await new Promise(
-        (resolve, reject) => {
-          let settled = false;
-          const finish = () => {
-            if (settled) {
-              return;
-            }
-            settled = true;
-            resolve();
-          };
+        (
+          resolve,
+          reject
+        ) => {
+          let settled =
+            false;
+          const finish =
+            () => {
+              if (
+                settled
+              ) {
+                return;
+              }
+              settled =
+                true;
+              resolve();
+            };
           stream.on(
             'end',
             finish
@@ -463,11 +582,16 @@ req.setTimeout(
           stream.on(
             'error',
             error => {
-              if (settled) {
+              if (
+                settled
+              ) {
                 return;
               }
-              settled = true;
-              reject(error);
+              settled =
+                true;
+              reject(
+                error
+              );
             }
           );
           setTimeout(
@@ -476,14 +600,15 @@ req.setTimeout(
           );
         }
       );
-      let inspection =
+      let execInspection =
         await exec.inspect();
-      let waitStartedAt =
+      const waitStartedAt =
         Date.now();
       while (
-        inspection.Running &&
-        Date.now() - waitStartedAt <
-        2000
+        execInspection.Running &&
+        Date.now() -
+          waitStartedAt <
+          2000
       ) {
         await new Promise(
           resolve =>
@@ -492,11 +617,12 @@ req.setTimeout(
               50
             )
         );
-        inspection =
+        execInspection =
           await exec.inspect();
       }
       if (
-        inspection.ExitCode === 0
+        execInspection.ExitCode ===
+        0
       ) {
         console.log(
           '[sandbox] Target health check passed.'
@@ -505,14 +631,16 @@ req.setTimeout(
       }
       console.log(
         '[sandbox] Target health check returned exit code:',
-        inspection.ExitCode
+        execInspection.ExitCode
       );
     } catch (error) {
       console.log(
         '[sandbox] Target health check retry:',
         error instanceof Error
           ? error.message
-          : String(error)
+          : String(
+              error
+            )
       );
     }
     await new Promise(
@@ -528,9 +656,12 @@ req.setTimeout(
       await targetContainer.inspect();
     const logs =
       await targetContainer.logs({
-        stdout: true,
-        stderr: true,
-        tail: 100
+        stdout:
+          true,
+        stderr:
+          true,
+        tail:
+          100,
       });
     console.error(
       '[sandbox] Target health check failed after timeout.'
@@ -541,19 +672,22 @@ req.setTimeout(
     );
     console.error(
       '[sandbox] Target logs:',
-      logs.toString('utf8')
+      logs.toString(
+        'utf8'
+      )
     );
   } catch (error) {
     console.error(
       '[sandbox] Failed to inspect unhealthy target:',
       error instanceof Error
         ? error.message
-        : String(error)
+        : String(
+            error
+          )
     );
   }
   return false;
 }
-
 function buildTargetInfo(
   target,
   containerName
@@ -561,29 +695,21 @@ function buildTargetInfo(
   return {
     name:
       'SentinelAI Vulnerable Target',
-
     url:
       target.browserUrl,
-
     containerId:
       target.container.id,
-
     status:
       'running',
-
     containerName,
-
     internalUrl:
       target.internalUrl,
-
     browserUrl:
       target.browserUrl,
-
     healthUrl:
       target.healthUrl,
   };
 }
-
 module.exports = {
   generateTargetApplication,
   createTarget,

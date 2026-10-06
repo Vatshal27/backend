@@ -218,13 +218,6 @@ app.post(
             const targetUrl =
                 req.body?.targetUrl;
 
-            if (!findings.length) {
-                return res.status(400).json({
-                    error:
-                        'At least one finding is required to run the sandbox.',
-                });
-            }
-
             if (
                 mode === 'project-validation' &&
                 !targetUrl
@@ -234,6 +227,9 @@ app.post(
                         'targetUrl is required for project validation.',
                 });
             }
+            console.log(
+                `[sandbox] Starting mode=${mode}, findings=${findings.length}, target=${targetUrl || 'synthetic'}`
+            );
 
             const report =
                 await runSandbox({
