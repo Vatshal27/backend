@@ -40,18 +40,26 @@ const {
 
 const {
   SANDBOX_TIMEOUT,
+  LOCAL_HOSTS,
 } = require('./config');
 
-const activeSandboxes = new Map();
+const activeSandboxes =
+  new Map();
 
-function createId(prefix = '') {
+function createId(
+  prefix = ''
+) {
   return (
     prefix +
-    crypto.randomBytes(6).toString('hex')
+    crypto
+      .randomBytes(6)
+      .toString('hex')
   );
 }
 
-function normalizeTargetUrl(targetUrl) {
+function normalizeTargetUrl(
+  targetUrl
+) {
   if (!targetUrl) {
     throw new Error(
       'No project runtime URL was provided.'
@@ -61,7 +69,10 @@ function normalizeTargetUrl(targetUrl) {
   let parsed;
 
   try {
-    parsed = new URL(targetUrl);
+    parsed =
+      new URL(
+        targetUrl
+      );
   } catch {
     throw new Error(
       `Invalid project runtime URL: ${targetUrl}`
@@ -69,7 +80,10 @@ function normalizeTargetUrl(targetUrl) {
   }
 
   if (
-    !['http:', 'https:'].includes(
+    ![
+      'http:',
+      'https:',
+    ].includes(
       parsed.protocol
     )
   ) {
@@ -79,17 +93,14 @@ function normalizeTargetUrl(targetUrl) {
   }
 
   const hostname =
-    parsed.hostname.toLowerCase();
+    parsed.hostname
+      .toLowerCase();
 
-  const allowedHosts = [
-    'localhost',
-    '127.0.0.1',
-    '::1',
-    '[::1]',
-    'host.docker.internal',
-  ];
-
-  if (!allowedHosts.includes(hostname)) {
+  if (
+    !LOCAL_HOSTS.includes(
+      hostname
+    )
+  ) {
     throw new Error(
       'Project validation is restricted to a local runtime.'
     );
@@ -97,7 +108,10 @@ function normalizeTargetUrl(targetUrl) {
 
   return parsed
     .toString()
-    .replace(/\/$/, '');
+    .replace(
+      /\/$/,
+      ''
+    );
 }
 
 function createEvent(
@@ -109,25 +123,47 @@ function createEvent(
   findingId
 ) {
   events.push({
-    id: createId('evt-'),
-    step: events.length + 1,
-    timestamp: new Date().toISOString(),
+    id:
+      createId(
+        'evt-'
+      ),
+
+    step:
+      events.length + 1,
+
+    timestamp:
+      new Date().toISOString(),
+
     stage,
-    ...(tool ? { tool } : {}),
+
+    ...(tool
+      ? { tool }
+      : {}),
+
     status,
+
     description,
-    ...(findingId ? { findingId } : {}),
+
+    ...(findingId
+      ? { findingId }
+      : {}),
   });
 }
 
-async function runSandbox(options = {}) {
+async function runSandbox(
+  options = {}
+) {
   const {
     findings = [],
     mode = 'simulation',
     targetUrl,
   } = options;
 
-  if (!Array.isArray(findings)) {
+  if (
+    !Array.isArray(
+      findings
+    )
+  ) {
     throw new Error(
       'Sandbox findings must be an array.'
     );
@@ -143,7 +179,9 @@ async function runSandbox(options = {}) {
   }
 
   const sandboxId =
-    createId('sandbox-');
+    createId(
+      'sandbox-'
+    );
 
   const startedAt =
     new Date().toISOString();
@@ -159,10 +197,13 @@ async function runSandbox(options = {}) {
   let network = null;
   let target = null;
   let targetBrowserUrl = null;
+  let targetInternalUrl = null;
 
   const runtimeTarget =
     mode === 'project-validation'
-      ? normalizeTargetUrl(targetUrl)
+      ? normalizeTargetUrl(
+          targetUrl
+        )
       : null;
 
   try {
@@ -170,7 +211,8 @@ async function runSandbox(options = {}) {
       events,
       'initialization',
       'started',
-      mode === 'project-validation'
+      mode ===
+        'project-validation'
         ? 'Initializing controlled validation against the local project runtime.'
         : 'Initializing isolated simulation environment.'
     );
@@ -178,7 +220,9 @@ async function runSandbox(options = {}) {
     const dockerStatus =
       await checkDocker();
 
-    if (!dockerStatus.ok) {
+    if (
+      !dockerStatus.ok
+    ) {
       throw new Error(
         dockerStatus.reason ||
         'Docker is unavailable.'
@@ -209,23 +253,47 @@ async function runSandbox(options = {}) {
         `sentinelai-${sandboxId}`,
         {
           hostAccess:
-            mode === 'project-validation',
+            mode ===
+            'project-validation',
         }
       );
-console.log('[sandbox] Docker network:', network.id);    createEvent(
+
+    if (
+      !network ||
+      !network.id ||
+      !network.name ||
+      !network.dockerNetwork
+    ) {
+      throw new Error(
+        'Docker network was not created correctly.'
+      );
+    }
+
+    console.log(
+      '[sandbox] Docker network:',
+      network.id,
+      network.name
+    );
+
+    createEvent(
       events,
       'network',
       'success',
-      mode === 'project-validation'
+      mode ===
+        'project-validation'
         ? 'Controlled validator network created with local host access.'
         : 'Isolated validator network created.'
     );
 
     let attackTargetUrl;
 
-    if (mode === 'simulation') {
+    if (
+      mode === 'simulation'
+    ) {
       const categories =
-        createCategories(findings);
+        createCategories(
+          findings
+        );
 
       const targetCode =
         generateTargetApplication(
@@ -233,20 +301,28 @@ console.log('[sandbox] Docker network:', network.id);    createEvent(
           categories
         );
 
+      const targetName =
+        `sentinelai-target-${sandboxId}`;
+
       const createdTarget =
-      await createTarget(
-        network.id,
-        `sentinelai-target-${sandboxId}`,
-        targetCode
-      );
+        await createTarget(
+          network.id,
+          network.name,
+          targetName,
+          targetCode
+        );
+
       target =
+        createdTarget.container;
+
+      containers.target =
         createdTarget.container;
 
       targetBrowserUrl =
         createdTarget.browserUrl;
 
-      containers.target =
-        createdTarget.container;
+      targetInternalUrl =
+        createdTarget.internalUrl;
 
       createEvent(
         events,
@@ -274,7 +350,7 @@ console.log('[sandbox] Docker network:', network.id);    createEvent(
       );
 
       attackTargetUrl =
-        targetBrowserUrl;
+        targetInternalUrl;
     } else {
       attackTargetUrl =
         runtimeTarget;
@@ -286,6 +362,19 @@ console.log('[sandbox] Docker network:', network.id);    createEvent(
         `Using local project runtime at ${runtimeTarget}.`
       );
     }
+
+    if (
+      !attackTargetUrl
+    ) {
+      throw new Error(
+        'No runtime target URL was resolved.'
+      );
+    }
+
+    console.log(
+      '[sandbox] Attack target:',
+      attackTargetUrl
+    );
 
     const plans =
       createAttackPlan(
@@ -303,22 +392,22 @@ console.log('[sandbox] Docker network:', network.id);    createEvent(
     const attackExecution =
       await Promise.race([
         runAttacks({
-        networkName:
-          network.id,
+          networkName:
+            network.name,
 
           containerName:
             `sentinelai-attacker-${sandboxId}`,
 
           findings,
+
           plans,
 
           targetUrl:
-            mode === 'simulation'
-              ? 'http://target:8080'
-              : runtimeTarget,
+            attackTargetUrl,
 
           projectValidation:
-            mode === 'project-validation',
+            mode ===
+            'project-validation',
         }),
 
         new Promise(
@@ -366,52 +455,64 @@ console.log('[sandbox] Docker network:', network.id);    createEvent(
     const finishedAt =
       new Date().toISOString();
 
-    const reportTarget =
-      mode === 'project-validation'
-        ? {
-            name:
-              'Local Project Runtime',
-            url:
-              runtimeTarget,
-            containerId:
-              '',
-            status:
-              'running',
-          }
-        : buildTargetInfo(
-            {
-              container:
-                target,
-              browserUrl:
-                targetBrowserUrl,
-            },
-            `sentinelai-target-${sandboxId}`
-          );
+    let reportTarget;
+
+    if (
+      mode ===
+      'project-validation'
+    ) {
+      reportTarget = {
+        name:
+          'Local Project Runtime',
+
+        url:
+          runtimeTarget,
+
+        containerId:
+          '',
+
+        status:
+          'running',
+      };
+    } else {
+      reportTarget =
+        buildTargetInfo(
+          {
+            container:
+              target,
+
+            browserUrl:
+              targetBrowserUrl,
+
+            internalUrl:
+              targetInternalUrl,
+          },
+
+          `sentinelai-target-${sandboxId}`
+        );
+    }
 
     const report =
       buildReport({
         sandboxId,
+
         mode,
+
         startedAt,
+
         finishedAt,
+
         target:
           reportTarget,
+
         containers,
+
         events,
+
         attacks,
+
         validations,
       });
-
-    activeSandboxes.set(
-      sandboxId,
-      {
-        sandboxId,
-        network,
-        target,
-        attacker:
-          containers.attacker,
-      }
-    );
 
     return report;
   } catch (error) {
@@ -426,21 +527,29 @@ console.log('[sandbox] Docker network:', network.id);    createEvent(
 
     throw error;
   } finally {
-    if (containers.attacker) {
+    if (
+      containers.attacker
+    ) {
       await removeContainer(
         containers.attacker
       );
     }
 
-    if (containers.target) {
+    if (
+      containers.target
+    ) {
       await removeContainer(
         containers.target
       );
     }
 
-    await removeNetwork(
+    if (
       network
-    );
+    ) {
+      await removeNetwork(
+        network.dockerNetwork
+      );
+    }
 
     activeSandboxes.delete(
       sandboxId
@@ -458,7 +567,9 @@ async function stopSandbox(
 
   if (!sandbox) {
     return {
-      stopped: false,
+      stopped:
+        false,
+
       reason:
         'Sandbox is no longer active.',
     };
@@ -481,7 +592,9 @@ async function stopSandbox(
   );
 
   return {
-    stopped: true,
+    stopped:
+      true,
+
     sandboxId,
   };
 }
@@ -490,4 +603,4 @@ module.exports = {
   checkDocker,
   runSandbox,
   stopSandbox,
-};
+};  

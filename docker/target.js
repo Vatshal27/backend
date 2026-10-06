@@ -6,7 +6,14 @@ const {
 
 const {
   TARGET_IMAGE,
+  TARGET_PORT,
+  TARGET_BIND_HOST,
+  TARGET_HEALTH_URL,
+  TARGET_HOST,
+  TARGET_BROWSER_HOST,
+  TARGET_INTERNAL_URL,
   SANDBOX_LIMITS,
+  TARGET_HEALTH_TIMEOUT,
 } = require('./config');
 
 function generateTargetApplication(
@@ -15,13 +22,18 @@ function generateTargetApplication(
 ) {
   const routes = [];
 
-  if (categories.sqli.length > 0) {
+  if (
+    categories.sqli.length > 0
+  ) {
     routes.push(`
   if (url.pathname === '/search') {
-    const query = url.searchParams.get('q') || '';
+    const query =
+      url.searchParams.get('q') || '';
 
     const simulatedQuery =
-      "SELECT * FROM users WHERE name = '" + query + "'";
+      "SELECT * FROM users WHERE name = '" +
+      query +
+      "'";
 
     const injectionDetected =
       query.includes("' OR ") ||
@@ -31,19 +43,25 @@ function generateTargetApplication(
     return json(res, 200, {
       query: simulatedQuery,
       vulnerable: injectionDetected,
-      results: injectionDetected ? users : [],
+      results: injectionDetected
+        ? users
+        : [],
       finding: ${JSON.stringify(
-        categories.sqli[0].type || 'SQL Injection'
+        categories.sqli[0].type ||
+        'SQL Injection'
       )}
     });
   }`);
   }
 
-  if (categories.xss.length > 0) {
+  if (
+    categories.xss.length > 0
+  ) {
     routes.push(`
   if (url.pathname === '/greet') {
     const name =
-      url.searchParams.get('name') || 'World';
+      url.searchParams.get('name') ||
+      'World';
 
     return html(
       res,
@@ -55,11 +73,14 @@ function generateTargetApplication(
   }`);
   }
 
-  if (categories.cmdi.length > 0) {
+  if (
+    categories.cmdi.length > 0
+  ) {
     routes.push(`
   if (url.pathname === '/ping') {
     const host =
-      url.searchParams.get('host') || 'localhost';
+      url.searchParams.get('host') ||
+      'localhost';
 
     const suspicious =
       host.includes(';') ||
@@ -77,7 +98,9 @@ function generateTargetApplication(
   }`);
   }
 
-  if (categories.path_traversal.length > 0) {
+  if (
+    categories.path_traversal.length > 0
+  ) {
     routes.push(`
   if (url.pathname === '/file') {
     const requested =
@@ -97,7 +120,9 @@ function generateTargetApplication(
   }`);
   }
 
-  if (categories.auth_bypass.length > 0) {
+  if (
+    categories.auth_bypass.length > 0
+  ) {
     routes.push(`
   if (url.pathname === '/admin') {
     return json(res, 200, {
@@ -109,7 +134,9 @@ function generateTargetApplication(
   }`);
   }
 
-  if (categories.code_injection.length > 0) {
+  if (
+    categories.code_injection.length > 0
+  ) {
     routes.push(`
   if (url.pathname === '/eval') {
     const code =
@@ -148,7 +175,9 @@ function json(res, status, body) {
     'Content-Type': 'application/json'
   });
 
-  res.end(JSON.stringify(body));
+  res.end(
+    JSON.stringify(body)
+  );
 }
 
 function html(res, status, body) {
@@ -160,33 +189,45 @@ function html(res, status, body) {
   res.end(body);
 }
 
-const server = http.createServer(
-  (req, res) => {
-    const url = new URL(
-      req.url,
-      'http://target'
-    );
+const server =
+  http.createServer(
+    (req, res) => {
+      const url =
+        new URL(
+          req.url,
+          'http://${TARGET_HOST}'
+        );
 
-    if (url.pathname === '/health') {
-      return json(res, 200, {
-        status: 'ok'
-      });
+      if (
+        url.pathname === '/health'
+      ) {
+        return json(
+          res,
+          200,
+          {
+            status: 'ok'
+          }
+        );
+      }
+
+      ${routes.join('\n')}
+
+      return json(
+        res,
+        404,
+        {
+          error: 'Not found'
+        }
+      );
     }
-
-    ${routes.join('\n')}
-
-    return json(res, 404, {
-      error: 'Not found'
-    });
-  }
-);
+  );
 
 server.listen(
-  8080,
-  '0.0.0.0',
+  ${TARGET_PORT},
+  '${TARGET_BIND_HOST}',
   () => {
     console.log(
-      'SentinelAI target listening on port 8080'
+      'SentinelAI target listening on port ${TARGET_PORT}'
     );
   }
 );
@@ -194,15 +235,18 @@ server.listen(
 }
 
 async function createTarget(
+  networkId,
   networkName,
   containerName,
   targetCode
 ) {
   const container =
     await docker.createContainer({
-      name: containerName,
+      name:
+        containerName,
 
-      Image: TARGET_IMAGE,
+      Image:
+        TARGET_IMAGE,
 
       Env: [
         `TARGET_CODE=${Buffer.from(
@@ -218,23 +262,21 @@ async function createTarget(
       ],
 
       ExposedPorts: {
-        '8080/tcp': {},
+        [`${TARGET_PORT}/tcp`]: {},
       },
 
       HostConfig: {
-        NetworkMode: networkName,
-
-        /*
-         * Bind the simulation only to localhost.
-         *
-         * HostPort "" means Docker selects
-         * an available host port automatically.
-         */
         PortBindings: {
-          '8080/tcp': [
+          [`${TARGET_PORT}/tcp`]: [
             {
-              HostIp: '127.0.0.1',
-              HostPort: '',
+              HostIp:
+                TARGET_BROWSER_HOST ===
+                'localhost'
+                  ? '127.0.0.1'
+                  : TARGET_BROWSER_HOST,
+
+              HostPort:
+                '',
             },
           ],
         },
@@ -256,7 +298,8 @@ async function createTarget(
           'no-new-privileges:true',
         ],
 
-        ReadonlyRootfs: true,
+        ReadonlyRootfs:
+          true,
 
         Tmpfs: {
           '/tmp':
@@ -268,7 +311,7 @@ async function createTarget(
         EndpointsConfig: {
           [networkName]: {
             Aliases: [
-              'target',
+              TARGET_HOST,
             ],
           },
         },
@@ -277,21 +320,19 @@ async function createTarget(
 
   await container.start();
 
-  /*
-   * Docker assigns the host port after the
-   * container starts.
-   */
   const inspection =
     await container.inspect();
 
   const bindings =
-    inspection.NetworkSettings?.Ports?.[
-      '8080/tcp'
-    ];
+    inspection
+      .NetworkSettings
+      ?.Ports?.[
+        `${TARGET_PORT}/tcp`
+      ];
 
   if (
     !bindings ||
-    !bindings.length ||
+    bindings.length === 0 ||
     !bindings[0].HostPort
   ) {
     throw new Error(
@@ -300,19 +341,30 @@ async function createTarget(
   }
 
   const hostPort =
-    bindings[0].HostPort;
+    Number(
+      bindings[0].HostPort
+    );
 
   return {
     container,
+
     hostPort,
+
     browserUrl:
-      `http://localhost:${hostPort}`,
+      `http://${TARGET_BROWSER_HOST}:${hostPort}`,
+
+    internalUrl:
+      TARGET_INTERNAL_URL,
+
+    healthUrl:
+      TARGET_HEALTH_URL,
   };
 }
 
 async function waitForTarget(
   targetContainer,
-  timeoutMs = 10000
+  timeoutMs =
+    TARGET_HEALTH_TIMEOUT
 ) {
   const started =
     Date.now();
@@ -331,12 +383,14 @@ async function waitForTarget(
 const http = require('http');
 
 const req = http.get(
-  'http://127.0.0.1:8080/health',
-  res => process.exit(
-    res.statusCode === 200
-      ? 0
-      : 1
-  )
+  '${TARGET_HEALTH_URL}',
+  res => {
+    process.exit(
+      res.statusCode === 200
+        ? 0
+        : 1
+    );
+  }
 );
 
 req.on(
@@ -346,31 +400,28 @@ req.on(
 
 req.setTimeout(
   1000,
-  () => process.exit(1)
+  () => {
+    req.destroy();
+    process.exit(1);
+  }
 );
 `,
           ],
 
-          AttachStdout: true,
-          AttachStderr: true,
+          AttachStdout:
+            false,
+
+          AttachStderr:
+            false,
         });
 
-      const stream =
-        await exec.start();
+      await exec.start({
+        hijack:
+          false,
 
-      await new Promise(
-        resolve => {
-          stream.on(
-            'end',
-            resolve
-          );
-
-          stream.on(
-            'close',
-            resolve
-          );
-        }
-      );
+        stdin:
+          false,
+      });
 
       const inspection =
         await exec.inspect();
@@ -378,10 +429,17 @@ req.setTimeout(
       if (
         inspection.ExitCode === 0
       ) {
+        console.log(
+          '[sandbox] Target health check passed.'
+        );
+
         return true;
       }
-    } catch {
-      // Target is not ready yet.
+    } catch (error) {
+      console.log(
+        '[sandbox] Target health check retry:',
+        error.message
+      );
     }
 
     await new Promise(
@@ -392,6 +450,10 @@ req.setTimeout(
         )
     );
   }
+
+  console.error(
+    '[sandbox] Target health check failed after timeout.'
+  );
 
   return false;
 }
@@ -415,15 +477,14 @@ function buildTargetInfo(
 
     containerName,
 
-    /*
-     * Internal Docker URL remains separate
-     * from the browser-facing URL.
-     */
     internalUrl:
-      'http://target:8080',
+      target.internalUrl,
 
     browserUrl:
       target.browserUrl,
+
+    healthUrl:
+      target.healthUrl,
   };
 }
 

@@ -11,21 +11,38 @@ const {
   ATTACK_IMAGE,
   SANDBOX_LIMITS,
   SANDBOX_TIMEOUT,
+  REQUEST_TIMEOUT,
 } = require('./config');
 
-function createId(prefix = '') {
-  return prefix + crypto.randomBytes(6).toString('hex');
+function createId(
+  prefix = ''
+) {
+  return (
+    prefix +
+    crypto
+      .randomBytes(6)
+      .toString('hex')
+  );
 }
 
-function buildPayload(finding, attackType) {
+function buildPayload(
+  finding,
+  attackType
+) {
   if (
-    Array.isArray(finding.attackPayloads) &&
+    Array.isArray(
+      finding.attackPayloads
+    ) &&
     finding.attackPayloads.length
   ) {
-    return finding.attackPayloads[0];
+    return (
+      finding.attackPayloads[0]
+    );
   }
 
-  switch (attackType) {
+  switch (
+    attackType
+  ) {
     case 'sqli':
       return "' OR '1'='1";
 
@@ -49,28 +66,45 @@ function buildPayload(finding, attackType) {
   }
 }
 
-function createSimulationPath(attackType, payload) {
-  const encoded = encodeURIComponent(payload);
+function createSimulationPath(
+  attackType,
+  payload
+) {
+  const encoded =
+    encodeURIComponent(
+      payload
+    );
 
-  switch (attackType) {
+  switch (
+    attackType
+  ) {
     case 'sqli':
-      return `/search?q=${encoded}`;
+      return (
+        `/search?q=${encoded}`
+      );
 
     case 'xss':
-      return `/greet?name=${encoded}`;
+      return (
+        `/greet?name=${encoded}`
+      );
 
     case 'cmdi':
-      return `/ping?host=${encoded}`;
+      return (
+        `/ping?host=${encoded}`
+      );
 
     case 'path_traversal':
-      
-      return `/file?name=${encoded}`;
+      return (
+        `/file?name=${encoded}`
+      );
 
     case 'auth_bypass':
       return '/admin';
 
     case 'code_injection':
-      return `/eval?code=${encoded}`;
+      return (
+        `/eval?code=${encoded}`
+      );
 
     default:
       return '/';
@@ -85,26 +119,41 @@ function buildAttackerScript(
 ) {
   const attacks = [];
 
-  for (const plan of plans) {
-    const finding = findings.find(
-      item => item.id === plan.findingId
-    );
+  for (
+    const plan of plans
+  ) {
+    const finding =
+      findings.find(
+        item =>
+          item.id ===
+          plan.findingId
+      );
 
     if (!finding) {
       continue;
     }
 
-    const payload = buildPayload(
-      finding,
-      plan.attackType
-    );
+    const payload =
+      buildPayload(
+        finding,
+        plan.attackType
+      );
 
     attacks.push({
-      id: createId('atk-'),
-      findingId: plan.findingId,
-      attackType: plan.attackType,
-      validator: plan.validator,
+      id:
+        createId('atk-'),
+
+      findingId:
+        plan.findingId,
+
+      attackType:
+        plan.attackType,
+
+      validator:
+        plan.validator,
+
       payload,
+
       simulationPath:
         createSimulationPath(
           plan.attackType,
@@ -117,82 +166,148 @@ function buildAttackerScript(
 const http = require('http');
 const https = require('https');
 
-const attacks = ${JSON.stringify(attacks)};
-const targetUrl = ${JSON.stringify(targetUrl)};
-const projectValidation = ${JSON.stringify(projectValidation)};
+const attacks =
+  ${JSON.stringify(attacks)};
 
-const parsedTarget = new URL(targetUrl);
+const targetUrl =
+  ${JSON.stringify(targetUrl)};
+
+const projectValidation =
+  ${JSON.stringify(
+    projectValidation
+  )};
+
+const parsedTarget =
+  new URL(targetUrl);
 
 const transport =
   parsedTarget.protocol === 'https:'
     ? https
     : http;
 
+const requestTimeout =
+  ${REQUEST_TIMEOUT};
+
 const results = [];
 
-function request(method, path, body) {
-  return new Promise((resolve, reject) => {
-    const url = new URL(path, targetUrl);
+function request(
+  method,
+  path,
+  body
+) {
+  return new Promise(
+    (resolve, reject) => {
+      const url =
+        new URL(
+          path,
+          targetUrl
+        );
 
-    const requestBody = body || null;
+      const requestBody =
+        body || null;
 
-    const headers = {};
+      const headers = {};
 
-    if (requestBody) {
-      headers['Content-Type'] =
-        'application/x-www-form-urlencoded';
+      if (requestBody) {
+        headers[
+          'Content-Type'
+        ] =
+          'application/x-www-form-urlencoded';
 
-      headers['Content-Length'] =
-        Buffer.byteLength(requestBody);
-    }
-
-    const req = transport.request(
-      {
-        hostname: url.hostname,
-        port:
-          url.port ||
-          (url.protocol === 'https:' ? 443 : 80),
-        path:
-          url.pathname +
-          url.search,
-        method,
-        headers,
-        timeout: 10000,
-      },
-      res => {
-        let data = '';
-
-        res.on('data', chunk => {
-          data += chunk.toString();
-        });
-
-        res.on('end', () => {
-          resolve({
-            statusCode: res.statusCode,
-            headers: res.headers,
-            body: data,
-          });
-        });
+        headers[
+          'Content-Length'
+        ] =
+          Buffer.byteLength(
+            requestBody
+          );
       }
-    );
 
-    req.on('error', reject);
+      const req =
+        transport.request(
+          {
+            hostname:
+              url.hostname,
 
-    req.on('timeout', () => {
-      req.destroy(
-        new Error('Request timed out')
+            port:
+              url.port ||
+              (
+                url.protocol ===
+                'https:'
+                  ? 443
+                  : 80
+              ),
+
+            path:
+              url.pathname +
+              url.search,
+
+            method,
+
+            headers,
+
+            timeout:
+              requestTimeout,
+          },
+
+          res => {
+            let data = '';
+
+            res.on(
+              'data',
+              chunk => {
+                data +=
+                  chunk.toString();
+              }
+            );
+
+            res.on(
+              'end',
+              () => {
+                resolve({
+                  statusCode:
+                    res.statusCode,
+
+                  headers:
+                    res.headers,
+
+                  body:
+                    data,
+                });
+              }
+            );
+          }
+        );
+
+      req.on(
+        'error',
+        reject
       );
-    });
 
-    if (requestBody) {
-      req.write(requestBody);
+      req.on(
+        'timeout',
+        () => {
+          req.destroy(
+            new Error(
+              'Request timed out'
+            )
+          );
+        }
+      );
+
+      if (requestBody) {
+        req.write(
+          requestBody
+        );
+      }
+
+      req.end();
     }
-
-    req.end();
-  });
+  );
 }
 
-function absoluteUrl(value) {
+function absoluteUrl(
+  value
+) {
   try {
     return new URL(
       value,
@@ -203,24 +318,32 @@ function absoluteUrl(value) {
   }
 }
 
-function sameOrigin(url) {
+function sameOrigin(
+  url
+) {
   try {
-    const parsed = new URL(
-      url,
-      targetUrl
-    );
+    const parsed =
+      new URL(
+        url,
+        targetUrl
+      );
 
     return (
-      parsed.protocol === parsedTarget.protocol &&
-      parsed.hostname === parsedTarget.hostname &&
-      parsed.port === parsedTarget.port
+      parsed.protocol ===
+        parsedTarget.protocol &&
+      parsed.hostname ===
+        parsedTarget.hostname &&
+      parsed.port ===
+        parsedTarget.port
     );
   } catch {
     return false;
   }
 }
 
-function discoverRoutes(body) {
+function discoverRoutes(
+  body
+) {
   const routes = [];
 
   const html =
@@ -234,16 +357,31 @@ function discoverRoutes(body) {
   let match;
 
   while (
-    (match = linkRegex.exec(html)) !== null
+    (match =
+      linkRegex.exec(
+        html
+      )) !== null
   ) {
-    const url = absoluteUrl(match[1]);
+    const url =
+      absoluteUrl(
+        match[1]
+      );
 
-    if (url && sameOrigin(url)) {
+    if (
+      url &&
+      sameOrigin(url)
+    ) {
       routes.push({
-        method: 'GET',
+        method:
+          'GET',
+
         url,
-        source: 'link',
-        parameters: [],
+
+        source:
+          'link',
+
+        parameters:
+          [],
       });
     }
   }
@@ -252,9 +390,13 @@ function discoverRoutes(body) {
     /<form[^>]*>([\\s\\S]*?)<\\/form>/gi;
 
   while (
-    (match = formRegex.exec(html)) !== null
+    (match =
+      formRegex.exec(
+        html
+      )) !== null
   ) {
-    const formHtml = match[0];
+    const formHtml =
+      match[0];
 
     const actionMatch =
       formHtml.match(
@@ -273,13 +415,19 @@ function discoverRoutes(body) {
 
     const method =
       methodMatch
-        ? methodMatch[1].toUpperCase()
+        ? methodMatch[1]
+            .toUpperCase()
         : 'GET';
 
     const url =
-      absoluteUrl(action);
+      absoluteUrl(
+        action
+      );
 
-    if (!url || !sameOrigin(url)) {
+    if (
+      !url ||
+      !sameOrigin(url)
+    ) {
       continue;
     }
 
@@ -292,7 +440,9 @@ function discoverRoutes(body) {
 
     while (
       (inputMatch =
-        inputRegex.exec(formHtml)) !== null
+        inputRegex.exec(
+          formHtml
+        )) !== null
     ) {
       parameters.push(
         inputMatch[1]
@@ -301,76 +451,130 @@ function discoverRoutes(body) {
 
     routes.push({
       method,
+
       url,
-      source: 'form',
+
+      source:
+        'form',
+
       parameters,
     });
   }
 
-const fetchRegex =
-  /fetch\\s*\\(\\s*["']([^"']+)["']/gi;
+  const fetchRegex =
+    /fetch\\s*\\(\\s*["']([^"']+)["']/gi;
 
-while (
-  (match = fetchRegex.exec(html)) !== null
-) {
-  const url = absoluteUrl(match[1]);
+  while (
+    (match =
+      fetchRegex.exec(
+        html
+      )) !== null
+  ) {
+    const url =
+      absoluteUrl(
+        match[1]
+      );
 
-  if (url && sameOrigin(url)) {
-    routes.push({
-      method: 'GET',
-      url,
-      source: 'javascript',
-      parameters: [],
-    });
+    if (
+      url &&
+      sameOrigin(url)
+    ) {
+      routes.push({
+        method:
+          'GET',
+
+        url,
+
+        source:
+          'javascript',
+
+        parameters:
+          [],
+      });
+    }
   }
-}
 
-const axiosRegex =
-  /axios\\.(?:get|post|put|patch|delete)\\s*\\(\\s*["']([^"']+)["']/gi;
+  const axiosRegex =
+    /axios\\.(?:get|post|put|patch|delete)\\s*\\(\\s*["']([^"']+)["']/gi;
 
-while (
-  (match = axiosRegex.exec(html)) !== null
-) {
-  const url = absoluteUrl(match[1]);
+  while (
+    (match =
+      axiosRegex.exec(
+        html
+      )) !== null
+  ) {
+    const url =
+      absoluteUrl(
+        match[1]
+      );
 
-  if (url && sameOrigin(url)) {
-    routes.push({
-      method: 'GET',
-      url,
-      source: 'javascript',
-      parameters: [],
-    });
+    if (
+      url &&
+      sameOrigin(url)
+    ) {
+      routes.push({
+        method:
+          'GET',
+
+        url,
+
+        source:
+          'javascript',
+
+        parameters:
+          [],
+      });
+    }
   }
-}
 
   routes.push({
-    method: 'GET',
-    url: targetUrl,
-    source: 'root',
-    parameters: [],
+    method:
+      'GET',
+
+    url:
+      targetUrl,
+
+    source:
+      'root',
+
+    parameters:
+      [],
   });
 
   const unique = [];
-  const seen = new Set();
+  const seen =
+    new Set();
 
-  for (const route of routes) {
+  for (
+    const route of routes
+  ) {
     const key =
       route.method +
       ' ' +
       route.url;
 
-    if (seen.has(key)) {
+    if (
+      seen.has(key)
+    ) {
       continue;
     }
 
     seen.add(key);
-    unique.push(route);
+    unique.push(
+      route
+    );
   }
 
-  return unique.slice(0, 50);
+  return unique.slice(
+    0,
+    50
+  );
 }
 
-function chooseRoute(attack, routes) {
+function chooseRoute(
+  attack,
+  routes
+) {
   const keywords = {
     sqli: [
       'search',
@@ -430,48 +634,76 @@ function chooseRoute(attack, routes) {
   };
 
   const wanted =
-    keywords[attack.attackType] || [];
+    keywords[
+      attack.attackType
+    ] || [];
 
   let best = null;
   let bestScore = -1;
 
-  for (const route of routes) {
-    const text = (
-      route.url +
-      ' ' +
-      (route.parameters || []).join(' ')
-    ).toLowerCase();
+  for (
+    const route of routes
+  ) {
+    const text =
+      (
+        route.url +
+        ' ' +
+        (
+          route.parameters ||
+          []
+        ).join(' ')
+      ).toLowerCase();
 
     let score = 0;
 
-    for (const keyword of wanted) {
-      if (text.includes(keyword)) {
+    for (
+      const keyword of wanted
+    ) {
+      if (
+        text.includes(
+          keyword
+        )
+      ) {
         score += 3;
       }
     }
 
-    if (route.source === 'form') {
+    if (
+      route.source ===
+      'form'
+    ) {
       score += 4;
     }
 
     if (
-      Array.isArray(route.parameters) &&
+      Array.isArray(
+        route.parameters
+      ) &&
       route.parameters.length > 0
     ) {
       score += 3;
     }
 
-    if (route.source === 'root') {
+    if (
+      route.source ===
+      'root'
+    ) {
       score -= 1;
     }
 
-    if (score > bestScore) {
+    if (
+      score > bestScore
+    ) {
       bestScore = score;
       best = route;
     }
   }
 
-  return best || routes[0] || null;
+  return (
+    best ||
+    routes[0] ||
+    null
+  );
 }
 
 function selectParameter(
@@ -479,7 +711,9 @@ function selectParameter(
   parameters
 ) {
   if (
-    Array.isArray(parameters) &&
+    Array.isArray(
+      parameters
+    ) &&
     parameters.length
   ) {
     const preferred = {
@@ -524,17 +758,24 @@ function selectParameter(
     };
 
     const wanted =
-      preferred[attackType] || [];
+      preferred[
+        attackType
+      ] || [];
 
-    for (const name of wanted) {
+    for (
+      const name of wanted
+    ) {
       const found =
         parameters.find(
           parameter =>
-            parameter.toLowerCase() ===
+            parameter
+              .toLowerCase() ===
             name
         );
 
-      if (found) {
+      if (
+        found
+      ) {
         return found;
       }
     }
@@ -543,14 +784,27 @@ function selectParameter(
   }
 
   const defaults = {
-    sqli: 'q',
-    xss: 'name',
-    cmdi: 'host',
-    path_traversal: 'file',
-    code_injection: 'code',
+    sqli:
+      'q',
+
+    xss:
+      'name',
+
+    cmdi:
+      'host',
+
+    path_traversal:
+      'file',
+
+    code_injection:
+      'code',
   };
 
-  return defaults[attackType] || null;
+  return (
+    defaults[
+      attackType
+    ] || null
+  );
 }
 
 function buildProjectRequest(
@@ -559,13 +813,18 @@ function buildProjectRequest(
 ) {
   if (!route) {
     return {
-      method: 'GET',
-      path: '/',
+      method:
+        'GET',
+
+      path:
+        '/',
     };
   }
 
   const parsed =
-    new URL(route.url);
+    new URL(
+      route.url
+    );
 
   const parameter =
     selectParameter(
@@ -573,8 +832,13 @@ function buildProjectRequest(
       route.parameters
     );
 
-  if (route.method === 'GET') {
-    if (parameter) {
+  if (
+    route.method ===
+    'GET'
+  ) {
+    if (
+      parameter
+    ) {
       parsed.searchParams.set(
         parameter,
         attack.payload
@@ -582,32 +846,45 @@ function buildProjectRequest(
     }
 
     return {
-      method: 'GET',
+      method:
+        'GET',
+
       path:
         parsed.pathname +
         parsed.search,
+
       parameter,
     };
   }
 
-  if (parameter) {
+  if (
+    parameter
+  ) {
     return {
-      method: route.method,
+      method:
+        route.method,
+
       path:
         parsed.pathname +
         parsed.search,
+
       body:
-        encodeURIComponent(parameter) +
+        encodeURIComponent(
+          parameter
+        ) +
         '=' +
         encodeURIComponent(
           attack.payload
         ),
+
       parameter,
     };
   }
 
   return {
-    method: route.method,
+    method:
+      route.method,
+
     path:
       parsed.pathname +
       parsed.search,
@@ -619,8 +896,11 @@ function containsPayload(
   payload
 ) {
   return (
-    typeof body === 'string' &&
-    body.includes(payload)
+    typeof body ===
+      'string' &&
+    body.includes(
+      payload
+    )
   );
 }
 
@@ -631,21 +911,29 @@ function detectEvidence(
   const body =
     response.body || '';
 
-  if (attack.attackType === 'xss') {
+  if (
+    attack.attackType ===
+    'xss'
+  ) {
     return containsPayload(
       body,
       attack.payload
     );
   }
 
-if (attack.attackType === 'sqli') {
-  return (
-    /"vulnerable"[\t\n\r ]*:[\t\n\r ]*true/i.test(body) ||
-    /sql syntax|mysql|postgres|sqlite|database error|syntax error/i.test(
-      body
-    )
-  );
-}
+  if (
+    attack.attackType ===
+    'sqli'
+  ) {
+    return (
+      /"vulnerable"[\t\n\r ]*:[\t\n\r ]*true/i.test(
+        body
+      ) ||
+      /sql syntax|mysql|postgres|sqlite|database error|syntax error/i.test(
+        body
+      )
+    );
+  }
 
   if (
     attack.attackType ===
@@ -658,7 +946,10 @@ if (attack.attackType === 'sqli') {
     );
   }
 
-  if (attack.attackType === 'cmdi') {
+  if (
+    attack.attackType ===
+    'cmdi'
+  ) {
     return (
       /uid=|gid=|whoami|command executed|command output/i.test(
         body
@@ -671,7 +962,8 @@ if (attack.attackType === 'sqli') {
     'auth_bypass'
   ) {
     return (
-      response.statusCode === 200 &&
+      response.statusCode ===
+        200 &&
       !/unauthorized|forbidden|authentication required/i.test(
         body
       )
@@ -703,10 +995,18 @@ function createEvidence(
 ) {
   const evidence = [
     {
-      id: '${createId('ev-')}',
-      type: 'request',
-      timestamp: startedAt,
-      source: attack.validator,
+      id:
+        '${createId('ev-')}',
+
+      type:
+        'request',
+
+      timestamp:
+        startedAt,
+
+      source:
+        attack.validator,
+
       content:
         requestInfo.method +
         ' ' +
@@ -717,33 +1017,63 @@ function createEvidence(
     },
 
     {
-      id: '${createId('ev-')}',
-      type: 'response',
-      timestamp: finishedAt,
-      source: 'project-runtime',
+      id:
+        '${createId('ev-')}',
+
+      type:
+        'response',
+
+      timestamp:
+        finishedAt,
+
+      source:
+        'project-runtime',
+
       content:
         response.body || '',
     },
   ];
 
-  if (route) {
+  if (
+    route
+  ) {
     evidence.push({
-      id: '${createId('ev-')}',
-      type: 'log',
-      timestamp: finishedAt,
-      source: 'route-discovery',
+      id:
+        '${createId('ev-')}',
+
+      type:
+        'log',
+
+      timestamp:
+        finishedAt,
+
+      source:
+        'route-discovery',
+
       content:
         'Selected route: ' +
-        JSON.stringify(route),
+        JSON.stringify(
+          route
+        ),
     });
   }
 
-  if (confirmed) {
+  if (
+    confirmed
+  ) {
     evidence.push({
-      id: '${createId('ev-')}',
-      type: 'finding',
-      timestamp: finishedAt,
-      source: attack.validator,
+      id:
+        '${createId('ev-')}',
+
+      type:
+        'finding',
+
+      timestamp:
+        finishedAt,
+
+      source:
+        attack.validator,
+
       content:
         'Runtime behavior matched the expected vulnerability signal.',
     });
@@ -781,18 +1111,25 @@ async function main() {
 
   console.error(
     'SENTINEL_DISCOVERY ' +
-    JSON.stringify(routes)
+    JSON.stringify(
+      routes
+    )
   );
 
-  for (const attack of attacks) {
+  for (
+    const attack of attacks
+  ) {
     const startedAt =
       new Date().toISOString();
 
     try {
       let requestInfo;
-      let selectedRoute = null;
+      let selectedRoute =
+        null;
 
-      if (projectValidation) {
+      if (
+        projectValidation
+      ) {
         selectedRoute =
           chooseRoute(
             attack,
@@ -806,7 +1143,9 @@ async function main() {
           );
       } else {
         requestInfo = {
-          method: 'GET',
+          method:
+            'GET',
+
           path:
             attack.simulationPath,
         };
@@ -835,25 +1174,33 @@ async function main() {
         ).toString();
 
       results.push({
-        id: attack.id,
+        id:
+          attack.id,
+
         findingId:
           attack.findingId,
+
         tool:
           attack.validator,
+
         attackType:
           attack.attackType,
+
         target:
           targetUrl,
+
         status:
           confirmed
             ? 'success'
             : 'inconclusive',
+
         payload:
           attack.payload,
 
         request: {
           method:
             requestInfo.method,
+
           url:
             requestUrl,
 
@@ -875,11 +1222,13 @@ async function main() {
         response: {
           statusCode:
             response.statusCode,
+
           body:
             response.body,
         },
 
         startedAt,
+
         finishedAt,
 
         evidence:
@@ -898,28 +1247,45 @@ async function main() {
         new Date().toISOString();
 
       results.push({
-        id: attack.id,
+        id:
+          attack.id,
+
         findingId:
           attack.findingId,
+
         tool:
           attack.validator,
+
         attackType:
           attack.attackType,
+
         target:
           targetUrl,
-        status: 'failed',
+
+        status:
+          'failed',
+
         payload:
           attack.payload,
+
         startedAt,
+
         finishedAt,
 
         evidence: [
           {
-            id: '${createId('ev-')}',
-            type: 'log',
-            timestamp: finishedAt,
+            id:
+              '${createId('ev-')}',
+
+            type:
+              'log',
+
+            timestamp:
+              finishedAt,
+
             source:
               attack.validator,
+
             content:
               error instanceof Error
                 ? error.message
@@ -931,21 +1297,29 @@ async function main() {
   }
 
   process.stdout.write(
-    '__SENTINEL_ATTACK_RESULT_START__\n'
+    '__SENTINEL_ATTACK_RESULT_START__\\n'
   );
 
   process.stdout.write(
-    JSON.stringify(results)
-  );
-  
-  process.stdout.write(
-    '\n__SENTINEL_ATTACK_RESULT_END__\n'
+    JSON.stringify(
+      results
+    )
   );
 
-main().catch(error => {
-  console.error(error);
-  process.exit(1);
-});
+  process.stdout.write(
+    '\\n__SENTINEL_ATTACK_RESULT_END__\\n'
+  );
+}
+
+main().catch(
+  error => {
+    console.error(
+      error
+    );
+
+    process.exit(1);
+  }
+);
 `;
 }
 
@@ -956,10 +1330,17 @@ async function createAttacker({
   projectValidation = false,
 }) {
   const hostConfig = {
-    AutoRemove: false,
-    Memory: SANDBOX_LIMITS.memory,
-    NanoCpus: SANDBOX_LIMITS.nanoCpus,
-    PidsLimit: SANDBOX_LIMITS.pidsLimit,
+    AutoRemove:
+      false,
+
+    Memory:
+      SANDBOX_LIMITS.memory,
+
+    NanoCpus:
+      SANDBOX_LIMITS.nanoCpus,
+
+    PidsLimit:
+      SANDBOX_LIMITS.pidsLimit,
 
     NetworkMode:
       projectValidation
@@ -968,8 +1349,11 @@ async function createAttacker({
   };
 
   return docker.createContainer({
-    Image: ATTACK_IMAGE,
-    name: containerName,
+    Image:
+      ATTACK_IMAGE,
+
+    name:
+      containerName,
 
     Cmd: [
       'node',
@@ -977,7 +1361,8 @@ async function createAttacker({
       script,
     ],
 
-    HostConfig: hostConfig,
+    HostConfig:
+      hostConfig,
   });
 }
 
@@ -996,12 +1381,7 @@ async function runAttacks({
   }
 
   const resolvedTarget =
-    projectValidation
-      ? targetUrl
-      : targetUrl.replace(
-          'localhost',
-          'target'
-        );
+    targetUrl;
 
   const script =
     buildAttackerScript(
@@ -1044,50 +1424,81 @@ async function runAttacks({
       container
     );
 
-  if (result.StatusCode !== 0) {
+  if (
+    result.StatusCode !== 0
+  ) {
     throw new Error(
       `Attack container failed: ${output}`
     );
   }
 
-const startMarker =
-  '__SENTINEL_ATTACK_RESULT_START__';
+  const startMarker =
+    '__SENTINEL_ATTACK_RESULT_START__';
 
-const endMarker =
-  '__SENTINEL_ATTACK_RESULT_END__';
+  const endMarker =
+    '__SENTINEL_ATTACK_RESULT_END__';
 
-const start =
-  output.indexOf(startMarker);
+  const start =
+    output.indexOf(
+      startMarker
+    );
 
-const end =
-  output.indexOf(
-    endMarker,
-    start + startMarker.length
-  );
+  const end =
+    output.indexOf(
+      endMarker,
+      start +
+        startMarker.length
+    );
 
-if (
-  start === -1 ||
-  end === -1
-) {
-  throw new Error(
-    `Attack container returned invalid result markers: ${output}`
-  );
-}
+  if (
+    start === -1 ||
+    end === -1
+  ) {
+    throw new Error(
+      `Attack container returned invalid result markers: ${output}`
+    );
+  }
 
-const jsonText =
-  output
-    .slice(
-      start + startMarker.length,
-      end
+  const jsonText =
+    output
+      .slice(
+        start +
+          startMarker.length,
+        end
+      )
+      .trim();
+
+  let attacks;
+
+  try {
+    attacks =
+      JSON.parse(
+        jsonText
+      );
+  } catch (error) {
+    throw new Error(
+      `Attack result JSON parsing failed: ${error.message}`,
+      { cause: error }
+    );
+  }
+
+  if (
+    !Array.isArray(
+      attacks
     )
-    .trim();
+  ) {
+    throw new Error(
+      'Attack container returned an invalid attack result.'
+    );
+  }
 
-return {
-  container,
-  attacks: JSON.parse(jsonText),
-};
+  return {
+    container,
+    attacks,
+  };
 }
 
 module.exports = {
   runAttacks,
+  createAttacker,
 };

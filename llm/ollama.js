@@ -3,7 +3,7 @@
 const axios = require('axios');
 
 const OLLAMA_URL = 'http://localhost:11434/api/generate';
-const MODEL = 'phi3:mini';
+const MODEL = 'qwen2.5:3b';
 
 const OLLAMA_OPTIONS = {
     temperature: 0.1,

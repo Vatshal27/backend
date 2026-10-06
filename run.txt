@@ -1,0 +1,4 @@
+$env:LLM_ENABLED="true"; node .\server.js
+
+
+$env:LLM_ENABLED="false"; node .\server.js
