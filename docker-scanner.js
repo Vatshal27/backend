@@ -7,14 +7,23 @@ const path = require('path');
 
 const docker = new Docker();
 
-const SCANNER_IMAGE = 'sentinelai-scanner:latest';
-const CONTAINER_TIMEOUT = 180000;
+const SCANNER_IMAGE =
+    process.env.SENTINEL_SCANNER_IMAGE ||
+    'sentinelai-scanner:latest';
+
+const CONTAINER_TIMEOUT =
+    Number(
+        process.env.SENTINEL_SCANNER_TIMEOUT ||
+        180000
+    );
 
 const SOURCE_EXTENSIONS = new Set([
     '.js',
     '.jsx',
     '.ts',
     '.tsx',
+    '.mjs',
+    '.cjs',
     '.py',
     '.java',
     '.c',
@@ -22,6 +31,7 @@ const SOURCE_EXTENSIONS = new Set([
     '.cpp',
     '.cc',
     '.cxx',
+    '.hpp',
     '.cs',
     '.go',
     '.rs',
@@ -30,6 +40,8 @@ const SOURCE_EXTENSIONS = new Set([
     '.swift',
     '.kt',
     '.kts',
+    '.scala',
+    '.dart',
     '.sql',
     '.html',
     '.htm',
@@ -40,7 +52,17 @@ const SOURCE_EXTENSIONS = new Set([
     '.yml',
     '.xml',
     '.sh',
-    '.bash'
+    '.bash',
+    '.zsh',
+    '.ps1',
+    '.env',
+]);
+
+const SPECIAL_SOURCE_FILES = new Set([
+    'dockerfile',
+    'nginx.conf',
+    'application.yml',
+    'application.yaml',
 ]);
 
 const IGNORED_PARTS = [
@@ -48,6 +70,8 @@ const IGNORED_PARTS = [
     '.git',
     '.svn',
     '.hg',
+    '.github',
+    '.gitlab',
     'dist',
     'build',
     'coverage',
@@ -58,8 +82,21 @@ const IGNORED_PARTS = [
     '__pycache__',
     '.pytest_cache',
     '.idea',
-    '.vscode'
+    '.vscode',
+    'target',
+    'vendor',
+    'out',
 ];
+
+const IGNORED_FILES = new Set([
+    'package-lock.json',
+    'yarn.lock',
+    'pnpm-lock.yaml',
+    'composer.lock',
+    'license',
+    'license.md',
+    'license.txt',
+]);
 
 async function checkDocker() {
     try {
@@ -69,16 +106,16 @@ async function checkDocker() {
         return {
             ok: true,
             version:
-                info.ServerVersion
+                info.ServerVersion ||
+                '',
         };
     } catch (error) {
         return {
             ok: false,
-            reason:
-                String(
-                    error.message ||
-                    error
-                )
+            reason: String(
+                error?.message ||
+                error
+            ),
         };
     }
 }
@@ -97,50 +134,6 @@ async function imageExists(
     }
 }
 
-async function pullImage(
-    imageName
-) {
-    if (
-        await imageExists(
-            imageName
-        )
-    ) {
-        return;
-    }
-
-    console.log(
-        `[docker-scanner] Pulling ${imageName}...`
-    );
-
-    const stream =
-        await docker.pull(
-            imageName
-        );
-
-    await new Promise(
-        (
-            resolve,
-            reject
-        ) => {
-            docker.modem.followProgress(
-                stream,
-                error => {
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-
-                    resolve();
-                }
-            );
-        }
-    );
-
-    console.log(
-        `[docker-scanner] Pulled ${imageName}`
-    );
-}
-
 function filterSourceFiles(
     files
 ) {
@@ -154,7 +147,8 @@ function filterSourceFiles(
         files.filter(file => {
             if (
                 !file ||
-                typeof file !== 'object'
+                typeof file !==
+                    'object'
             ) {
                 return false;
             }
@@ -163,40 +157,77 @@ function filterSourceFiles(
                 String(
                     file.path ||
                     ''
-                ).replace(
-                    /\\/g,
-                    '/'
-                );
+                )
+                    .replace(
+                        /\\/g,
+                        '/'
+                    )
+                    .replace(
+                        /^\/+/,
+                        ''
+                    );
 
-            if (
-                !filePath
-            ) {
+            if (!filePath) {
                 return false;
             }
 
             const lowerPath =
                 filePath.toLowerCase();
 
+            const pathParts =
+                lowerPath.split('/');
+
             if (
                 IGNORED_PARTS.some(
                     part =>
-                        lowerPath
-                            .split('/')
-                            .includes(part)
+                        pathParts.includes(
+                            part
+                        )
                 )
             ) {
                 return false;
             }
 
+            const baseName =
+                path.basename(
+                    lowerPath
+                );
+
+            if (
+                IGNORED_FILES.has(
+                    baseName
+                )
+            ) {
+                return false;
+            }
+
+            if (
+                baseName.startsWith(
+                    'readme'
+                )
+            ) {
+                return false;
+            }
+
+            if (
+                SPECIAL_SOURCE_FILES.has(
+                    baseName
+                )
+            ) {
+                return true;
+            }
+
             const extension =
                 path
                     .extname(
-                        filePath
+                        lowerPath
                     )
                     .toLowerCase();
 
-            return SOURCE_EXTENSIONS.has(
-                extension
+            return (
+                SOURCE_EXTENSIONS.has(
+                    extension
+                )
             );
         });
 
@@ -211,6 +242,11 @@ function writeScanFiles(
     files,
     scanDirectory
 ) {
+    const normalizedRoot =
+        path.resolve(
+            scanDirectory
+        );
+
     for (
         const file of files
     ) {
@@ -228,30 +264,28 @@ function writeScanFiles(
                     ''
                 );
 
+        if (!relativePath) {
+            continue;
+        }
+
         const destination =
-            path.join(
+            path.resolve(
                 scanDirectory,
                 relativePath
             );
 
-        const normalizedRoot =
-            path.resolve(
-                scanDirectory
-            );
-
-        const normalizedDestination =
-            path.resolve(
-                destination
-            );
-
         if (
-            normalizedDestination !==
+            destination !==
                 normalizedRoot &&
-            !normalizedDestination.startsWith(
+            !destination.startsWith(
                 normalizedRoot +
                 path.sep
             )
         ) {
+            console.warn(
+                `[docker-scanner] Skipping unsafe path: ${relativePath}`
+            );
+
             continue;
         }
 
@@ -260,7 +294,7 @@ function writeScanFiles(
                 destination
             ),
             {
-                recursive: true
+                recursive: true,
             }
         );
 
@@ -279,7 +313,7 @@ function makeScanFilesReadable(
     scanDirectory
 ) {
     const stack = [
-        scanDirectory
+        scanDirectory,
     ];
 
     while (
@@ -296,7 +330,7 @@ function makeScanFilesReadable(
                     current,
                     {
                         withFileTypes:
-                            true
+                            true,
                     }
                 );
         } catch {
@@ -304,7 +338,8 @@ function makeScanFilesReadable(
         }
 
         for (
-            const entry of entries
+            const entry of
+                entries
         ) {
             const entryPath =
                 path.join(
@@ -315,9 +350,19 @@ function makeScanFilesReadable(
             if (
                 entry.isDirectory()
             ) {
+                try {
+                    fs.chmodSync(
+                        entryPath,
+                        0o755
+                    );
+                } catch {
+                    // Ignore permission failures.
+                }
+
                 stack.push(
                     entryPath
                 );
+
                 continue;
             }
 
@@ -361,14 +406,119 @@ function buildScannerCommand(
 
         'printf "__SENTINEL_RESULT_START__\\n"',
 
-        'python3 -c \'import json; s=json.load(open("/tmp/semgrep.json")); b=json.load(open("/tmp/bandit.json")); print(json.dumps({"semgrep": s.get("results", []), "bandit": b.get("results", []), "filesScanned": ' +
-            String(
-                fileCount
-            ) +
-            '}))\'',
+        `python3 -c 'import json; s=json.load(open("/tmp/semgrep.json")); b=json.load(open("/tmp/bandit.json")); print(json.dumps({"semgrep": s.get("results", []), "bandit": b.get("results", []), "filesScanned": ${Number(fileCount)}}))'`,
 
-        'printf "\\n__SENTINEL_RESULT_END__\\n"'
+        'printf "__SENTINEL_RESULT_END__\\n"',
     ].join('\n');
+}
+
+function decodeDockerLogs(
+    buffer
+) {
+    if (
+        !Buffer.isBuffer(
+            buffer
+        )
+    ) {
+        return String(
+            buffer ||
+            ''
+        );
+    }
+
+    if (
+        buffer.length === 0
+    ) {
+        return '';
+    }
+
+    let offset = 0;
+    let output = '';
+
+    while (
+        offset + 8 <=
+        buffer.length
+    ) {
+        const streamType =
+            buffer[offset];
+
+        const reserved1 =
+            buffer[offset + 1];
+
+        const reserved2 =
+            buffer[offset + 2];
+
+        const reserved3 =
+            buffer[offset + 3];
+
+        const looksLikeHeader =
+            (
+                streamType === 0 ||
+                streamType === 1 ||
+                streamType === 2
+            ) &&
+            reserved1 === 0 &&
+            reserved2 === 0 &&
+            reserved3 === 0;
+
+        if (
+            !looksLikeHeader
+        ) {
+            return buffer.toString(
+                'utf8'
+            );
+        }
+
+        const payloadLength =
+            buffer.readUInt32BE(
+                offset + 4
+            );
+
+        const payloadStart =
+            offset + 8;
+
+        const payloadEnd =
+            payloadStart +
+            payloadLength;
+
+        if (
+            payloadEnd >
+            buffer.length
+        ) {
+            return buffer.toString(
+                'utf8'
+            );
+        }
+
+        output +=
+            buffer
+                .subarray(
+                    payloadStart,
+                    payloadEnd
+                )
+                .toString(
+                    'utf8'
+                );
+
+        offset =
+            payloadEnd;
+    }
+
+    if (
+        offset !==
+        buffer.length
+    ) {
+        output +=
+            buffer
+                .subarray(
+                    offset
+                )
+                .toString(
+                    'utf8'
+                );
+    }
+
+    return output;
 }
 
 function extractScannerResult(
@@ -381,14 +531,9 @@ function extractScannerResult(
         '__SENTINEL_RESULT_END__';
 
     const text =
-        Buffer.isBuffer(logs)
-            ? logs.toString(
-                'utf8'
-            )
-            : String(
-                logs ||
-                ''
-            );
+        decodeDockerLogs(
+            logs
+        );
 
     const startIndex =
         text.indexOf(
@@ -425,7 +570,7 @@ function extractScannerResult(
         return null;
     }
 
-    let jsonText =
+    const jsonText =
         text
             .slice(
                 jsonStart,
@@ -433,17 +578,13 @@ function extractScannerResult(
             )
             .trim();
 
-    jsonText =
-        jsonText
-            .replace(
-                /^[\u0000-\u001F]+/,
-                ''
-            )
-            .replace(
-                /[\u0000-\u001F]+$/,
-                ''
-            )
-            .trim();
+    if (!jsonText) {
+        console.error(
+            '[docker-scanner] Scanner result JSON is empty.'
+        );
+
+        return null;
+    }
 
     try {
         const result =
@@ -465,7 +606,19 @@ function extractScannerResult(
             );
         }
 
-        return result;
+        return {
+            semgrep:
+                result.semgrep,
+
+            bandit:
+                result.bandit,
+
+            filesScanned:
+                Number(
+                    result.filesScanned ||
+                    0
+                ),
+        };
     } catch (error) {
         console.error(
             '[docker-scanner] Result JSON parse failed:',
@@ -482,7 +635,7 @@ function extractScannerResult(
             JSON.stringify(
                 jsonText.slice(
                     0,
-                    200
+                    300
                 )
             )
         );
@@ -494,11 +647,12 @@ function extractScannerResult(
 async function runScannersInContainer(
     files
 ) {
-    if (
-        !await imageExists(
+    const exists =
+        await imageExists(
             SCANNER_IMAGE
-        )
-    ) {
+        );
+
+    if (!exists) {
         throw new Error(
             `Docker image ${SCANNER_IMAGE} is missing. Build it first.`
         );
@@ -522,6 +676,7 @@ async function runScannersInContainer(
     );
 
     let container;
+    let timeoutHandle;
 
     try {
         container =
@@ -540,7 +695,7 @@ async function runScannersInContainer(
                     '-c',
                     buildScannerCommand(
                         files.length
-                    )
+                    ),
                 ],
 
                 WorkingDir:
@@ -548,7 +703,7 @@ async function runScannersInContainer(
 
                 HostConfig: {
                     Binds: [
-                        `${scanDirectory}:/workspace:ro`
+                        `${scanDirectory}:/workspace:ro`,
                     ],
 
                     Memory:
@@ -563,43 +718,67 @@ async function runScannersInContainer(
                         256,
 
                     CapDrop: [
-                        'ALL'
+                        'ALL',
                     ],
 
                     SecurityOpt: [
-                        'no-new-privileges:true'
+                        'no-new-privileges:true',
                     ],
 
                     AutoRemove:
-                        false
-                }
+                        false,
+                },
             });
 
         await container.start();
 
-        const waitResult =
-            await Promise.race([
-                container.wait(),
-
-                new Promise(
-                    (_, reject) =>
+        const timeoutPromise =
+            new Promise(
+                (
+                    _,
+                    reject
+                ) => {
+                    timeoutHandle =
                         setTimeout(
-                            () =>
+                            () => {
                                 reject(
                                     new Error(
                                         'Scanner container timed out.'
                                     )
-                                ),
+                                );
+                            },
                             CONTAINER_TIMEOUT
-                        )
-                )
+                        );
+                }
+            );
+
+        const waitResult =
+            await Promise.race([
+                container.wait(),
+                timeoutPromise,
             ]);
+
+        if (
+            timeoutHandle
+        ) {
+            clearTimeout(
+                timeoutHandle
+            );
+
+            timeoutHandle =
+                null;
+        }
 
         const rawLogs =
             await container.logs({
                 stdout: true,
-                stderr: true
+                stderr: true,
             });
+
+        const decodedLogs =
+            decodeDockerLogs(
+                rawLogs
+            );
 
         console.log(
             `[docker-scanner] Container exited with code ${waitResult.StatusCode}`
@@ -610,26 +789,27 @@ async function runScannersInContainer(
                 rawLogs
             );
 
-        if (
-            result
-        ) {
+        if (result) {
+            if (
+                waitResult.StatusCode !==
+                0
+            ) {
+                console.warn(
+                    `[docker-scanner] Scanner container exited with non-zero status ${waitResult.StatusCode}, but returned a valid result.`
+                );
+            }
+
             return result;
         }
-
-        const output =
-            rawLogs
-                .toString(
-                    'utf8'
-                );
 
         console.error(
             '[docker-scanner] Scanner returned no valid result.'
         );
 
         console.error(
-            output.slice(
+            decodedLogs.slice(
                 0,
-                3000
+                5000
             )
         );
 
@@ -637,30 +817,38 @@ async function runScannersInContainer(
             semgrep: [],
             bandit: [],
             filesScanned:
-                files.length
+                files.length,
         };
     } finally {
         if (
-            container
+            timeoutHandle
         ) {
+            clearTimeout(
+                timeoutHandle
+            );
+        }
+
+        if (container) {
             try {
                 await container.remove({
-                    force: true
+                    force: true,
                 });
             } catch {
                 // Ignore cleanup failures.
             }
         }
 
-        fs.rmSync(
-            scanDirectory,
-            {
-                recursive:
-                    true,
-                force:
-                    true
-            }
-        );
+        try {
+            fs.rmSync(
+                scanDirectory,
+                {
+                    recursive: true,
+                    force: true,
+                }
+            );
+        } catch {
+            // Ignore cleanup failures.
+        }
     }
 }
 
@@ -727,47 +915,69 @@ function convertSemgrepType(
             .toLowerCase();
 
     if (
-        text.includes('sql')
+        text.includes(
+            'sql'
+        )
     ) {
         return 'SQL Injection';
     }
 
     if (
-        text.includes('xss') ||
-        text.includes('cross-site')
+        text.includes(
+            'xss'
+        ) ||
+        text.includes(
+            'cross-site'
+        )
     ) {
         return 'Cross-Site Scripting';
     }
 
     if (
-        text.includes('command') ||
-        text.includes('shell')
+        text.includes(
+            'command'
+        ) ||
+        text.includes(
+            'shell'
+        )
     ) {
         return 'Command Injection';
     }
 
     if (
-        text.includes('path') ||
-        text.includes('traversal')
+        text.includes(
+            'path'
+        ) ||
+        text.includes(
+            'traversal'
+        )
     ) {
         return 'Path Traversal';
     }
 
     if (
-        text.includes('deserial')
+        text.includes(
+            'deserial'
+        )
     ) {
         return 'Insecure Deserialization';
     }
 
     if (
-        text.includes('secret') ||
-        text.includes('credential')
+        text.includes(
+            'secret'
+        ) ||
+        text.includes(
+            'credential'
+        )
     ) {
         return 'Hardcoded Secret';
     }
 
     if (
-        text.includes('ssrf')
+        text.includes(
+            'ssrf'
+        )
     ) {
         return 'SSRF';
     }
@@ -790,54 +1000,78 @@ function convertBanditType(
     const mapping = {
         B101:
             'Insecure Debug / Assert',
+
         B102:
             'Exec Used',
+
         B103:
             'Insecure File Permissions',
+
         B104:
             'Binding To All Interfaces',
+
         B105:
             'Hardcoded Password',
+
         B106:
             'Hardcoded Password',
+
         B107:
             'Hardcoded Password',
+
         B108:
             'Insecure Temporary File',
+
         B110:
             'Try Except Pass',
+
         B301:
             'Insecure Pickle',
+
         B302:
             'Insecure Marshal',
+
         B303:
             'Weak Cryptography',
+
         B304:
             'Weak Cryptography',
+
         B305:
             'Weak Cryptography',
+
         B306:
             'Insecure Temporary File',
+
         B307:
             'Use Of Eval',
+
         B308:
             'Insecure Markup',
+
         B310:
             'URL Open',
+
         B311:
             'Weak Randomness',
+
         B324:
             'Weak Hash',
+
         B501:
             'Request Without Certificate Validation',
+
         B506:
             'Insecure YAML Load',
+
         B602:
             'Subprocess With Shell',
+
         B603:
             'Subprocess Without Shell',
+
         B604:
-            'Function With Shell'
+            'Function With Shell',
     };
 
     return (
@@ -850,7 +1084,9 @@ function normalizeSemgrepFindings(
     results
 ) {
     if (
-        !Array.isArray(results)
+        !Array.isArray(
+            results
+        )
     ) {
         return [];
     }
@@ -888,6 +1124,7 @@ function normalizeSemgrepFindings(
 
                 severity:
                     convertSemgrepSeverity(
+                        extra.severity ||
                         finding.severity
                     ),
 
@@ -906,7 +1143,9 @@ function normalizeSemgrepFindings(
                 message,
 
                 cwe:
-                    Array.isArray(cwe)
+                    Array.isArray(
+                        cwe
+                    )
                         ? cwe.join(
                             ', '
                         )
@@ -918,7 +1157,7 @@ function normalizeSemgrepFindings(
                 source:
                     'Static Analysis (Docker)',
 
-                metadata
+                metadata,
             };
         }
     );
@@ -928,7 +1167,9 @@ function normalizeBanditFindings(
     results
 ) {
     if (
-        !Array.isArray(results)
+        !Array.isArray(
+            results
+        )
     ) {
         return [];
     }
@@ -960,6 +1201,10 @@ function normalizeBanditFindings(
                 finding.line_number ||
                 0,
 
+            column:
+                finding.col_offset ||
+                0,
+
             message:
                 finding.issue_text ||
                 'Security issue detected',
@@ -974,9 +1219,42 @@ function normalizeBanditFindings(
 
             confidence:
                 finding.issue_confidence ||
-                ''
+                '',
         })
     );
+}
+
+function normalizeFindingPath(
+    filePath
+) {
+    return String(
+        filePath ||
+        ''
+    )
+        .replace(
+            /\\/g,
+            '/'
+        )
+        .replace(
+            /^\/workspace\//i,
+            ''
+        )
+        .replace(
+            /^workspace\//i,
+            ''
+        )
+        .replace(
+            /^\/tmp\/code\//i,
+            ''
+        )
+        .replace(
+            /^tmp\/code\//i,
+            ''
+        )
+        .replace(
+            /^\/+/,
+            ''
+        );
 }
 
 function attachCodeContext(
@@ -984,7 +1262,12 @@ function attachCodeContext(
     files
 ) {
     if (
-        !Array.isArray(files) ||
+        !Array.isArray(
+            findings
+        ) ||
+        !Array.isArray(
+            files
+        ) ||
         files.length === 0
     ) {
         return findings;
@@ -1004,14 +1287,9 @@ function attachCodeContext(
         }
 
         const normalizedPath =
-            String(
+            normalizeFindingPath(
                 file.path
-            )
-                .replace(
-                    /\\/g,
-                    '/'
-                )
-                .toLowerCase();
+            ).toLowerCase();
 
         const code =
             String(
@@ -1034,25 +1312,10 @@ function attachCodeContext(
 
     return findings.map(
         finding => {
-            const rawPath =
-                String(
-                    finding.file ||
-                    ''
-                ).replace(
-                    /\\/g,
-                    '/'
-                );
-
             const cleanedPath =
-                rawPath
-                    .replace(
-                        /^\/tmp\/code\//i,
-                        ''
-                    )
-                    .replace(
-                        /^tmp\/code\//i,
-                        ''
-                    );
+                normalizeFindingPath(
+                    finding.file
+                );
 
             const lookupPath =
                 cleanedPath.toLowerCase();
@@ -1072,59 +1335,61 @@ function attachCodeContext(
 
                 file:
                     cleanedPath ||
-                    finding.file
+                    finding.file,
             };
 
+            if (!code) {
+                return updated;
+            }
+
+            const lines =
+                code.split(
+                    '\n'
+                );
+
+            const lineNo =
+                Number.parseInt(
+                    finding.line,
+                    10
+                );
+
             if (
-                code
+                Number.isNaN(
+                    lineNo
+                ) ||
+                lineNo <= 0
             ) {
-                const lines =
-                    code.split(
+                return updated;
+            }
+
+            const start =
+                Math.max(
+                    0,
+                    lineNo - 5
+                );
+
+            const end =
+                Math.min(
+                    lines.length,
+                    lineNo + 5
+                );
+
+            updated.codeContext =
+                lines
+                    .slice(
+                        start,
+                        end
+                    )
+                    .map(
+                        (
+                            line,
+                            index
+                        ) =>
+                            `${start + index + 1}: ${line}`
+                    )
+                    .join(
                         '\n'
                     );
-
-                const lineNo =
-                    parseInt(
-                        finding.line,
-                        10
-                    );
-
-                if (
-                    !Number.isNaN(
-                        lineNo
-                    ) &&
-                    lineNo > 0
-                ) {
-                    const start =
-                        Math.max(
-                            0,
-                            lineNo - 5
-                        );
-
-                    const end =
-                        Math.min(
-                            lines.length,
-                            lineNo + 5
-                        );
-
-                    updated.codeContext =
-                        lines
-                            .slice(
-                                start,
-                                end
-                            )
-                            .map(
-                                (
-                                    line,
-                                    index
-                                ) =>
-                                    `${start + index + 1}: ${line}`
-                            )
-                            .join(
-                                '\n'
-                            );
-                }
-            }
 
             return updated;
         }
@@ -1139,14 +1404,13 @@ function deduplicateFindings(
 
     return findings.filter(
         finding => {
-            const key =
-                [
-                    finding.tool,
-                    finding.id,
-                    finding.file,
-                    finding.line,
-                    finding.message
-                ].join('|');
+            const key = [
+                finding.tool,
+                finding.id,
+                finding.file,
+                finding.line,
+                finding.message,
+            ].join('|');
 
             if (
                 seen.has(key)
@@ -1154,9 +1418,7 @@ function deduplicateFindings(
                 return false;
             }
 
-            seen.add(
-                key
-            );
+            seen.add(key);
 
             return true;
         }
@@ -1184,7 +1446,8 @@ async function runStaticAnalysis(
         );
 
     if (
-        filteredFiles.length === 0
+        filteredFiles.length ===
+        0
     ) {
         console.log(
             '[docker-scanner] No relevant source files to scan'
@@ -1213,7 +1476,7 @@ async function runStaticAnalysis(
     const allFindings =
         deduplicateFindings([
             ...semgrepFindings,
-            ...banditFindings
+            ...banditFindings,
         ]);
 
     const enrichedFindings =
@@ -1234,5 +1497,5 @@ async function runStaticAnalysis(
 module.exports = {
     checkDocker,
     runStaticAnalysis,
-    filterSourceFiles
+    filterSourceFiles,
 };

@@ -363,85 +363,158 @@ async function createTarget(
 
 async function waitForTarget(
   targetContainer,
-  timeoutMs =
-    TARGET_HEALTH_TIMEOUT
+  timeoutMs = TARGET_HEALTH_TIMEOUT
 ) {
-  const started =
-    Date.now();
-
+  const startedAt = Date.now();
   while (
-    Date.now() - started <
+    Date.now() - startedAt <
     timeoutMs
   ) {
     try {
+      const containerState =
+        await targetContainer.inspect();
+      if (
+        !containerState.State ||
+        !containerState.State.Running
+      ) {
+        const logs =
+          await targetContainer.logs({
+            stdout: true,
+            stderr: true,
+            tail: 100
+          });
+        console.error(
+          '[sandbox] Target container stopped unexpectedly.'
+        );
+        console.error(
+          '[sandbox] Target state:',
+          containerState.State
+        );
+        console.error(
+          '[sandbox] Target logs:',
+          logs.toString('utf8')
+        );
+        return false;
+      }
       const exec =
         await targetContainer.exec({
           Cmd: [
             'node',
             '-e',
             `
-const http = require('http');
-
-const req = http.get(
-  '${TARGET_HEALTH_URL}',
-  res => {
-    process.exit(
-      res.statusCode === 200
-        ? 0
-        : 1
+const http=require('http');
+const req=http.get(
+  ${JSON.stringify(TARGET_HEALTH_URL)},
+  res=>{
+    res.resume();
+    res.on(
+      'end',
+      ()=>{
+        process.exit(
+          res.statusCode===200
+            ? 0
+            : 1
+        );
+      }
     );
   }
 );
-
 req.on(
   'error',
-  () => process.exit(1)
+  ()=>{
+    process.exit(1);
+  }
 );
-
 req.setTimeout(
   1000,
-  () => {
+  ()=>{
     req.destroy();
     process.exit(1);
   }
 );
-`,
+`
           ],
-
-          AttachStdout:
-            false,
-
-          AttachStderr:
-            false,
+          AttachStdout: true,
+          AttachStderr: true
         });
-
-      await exec.start({
-        hijack:
-          false,
-
-        stdin:
-          false,
-      });
-
-      const inspection =
+      const stream =
+        await exec.start({
+          hijack: true,
+          stdin: false
+        });
+      await new Promise(
+        (resolve, reject) => {
+          let settled = false;
+          const finish = () => {
+            if (settled) {
+              return;
+            }
+            settled = true;
+            resolve();
+          };
+          stream.on(
+            'end',
+            finish
+          );
+          stream.on(
+            'close',
+            finish
+          );
+          stream.on(
+            'error',
+            error => {
+              if (settled) {
+                return;
+              }
+              settled = true;
+              reject(error);
+            }
+          );
+          setTimeout(
+            finish,
+            2000
+          );
+        }
+      );
+      let inspection =
         await exec.inspect();
-
+      let waitStartedAt =
+        Date.now();
+      while (
+        inspection.Running &&
+        Date.now() - waitStartedAt <
+        2000
+      ) {
+        await new Promise(
+          resolve =>
+            setTimeout(
+              resolve,
+              50
+            )
+        );
+        inspection =
+          await exec.inspect();
+      }
       if (
         inspection.ExitCode === 0
       ) {
         console.log(
           '[sandbox] Target health check passed.'
         );
-
         return true;
       }
+      console.log(
+        '[sandbox] Target health check returned exit code:',
+        inspection.ExitCode
+      );
     } catch (error) {
       console.log(
         '[sandbox] Target health check retry:',
-        error.message
+        error instanceof Error
+          ? error.message
+          : String(error)
       );
     }
-
     await new Promise(
       resolve =>
         setTimeout(
@@ -450,11 +523,34 @@ req.setTimeout(
         )
     );
   }
-
-  console.error(
-    '[sandbox] Target health check failed after timeout.'
-  );
-
+  try {
+    const inspection =
+      await targetContainer.inspect();
+    const logs =
+      await targetContainer.logs({
+        stdout: true,
+        stderr: true,
+        tail: 100
+      });
+    console.error(
+      '[sandbox] Target health check failed after timeout.'
+    );
+    console.error(
+      '[sandbox] Target state:',
+      inspection.State
+    );
+    console.error(
+      '[sandbox] Target logs:',
+      logs.toString('utf8')
+    );
+  } catch (error) {
+    console.error(
+      '[sandbox] Failed to inspect unhealthy target:',
+      error instanceof Error
+        ? error.message
+        : String(error)
+    );
+  }
   return false;
 }
 

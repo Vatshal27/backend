@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-
+const { PassThrough } = require('stream');
 const {
   docker,
   getContainerLogs,
@@ -921,19 +921,49 @@ function detectEvidence(
     );
   }
 
-  if (
+if (
     attack.attackType ===
     'sqli'
-  ) {
-    return (
-      /"vulnerable"[\t\n\r ]*:[\t\n\r ]*true/i.test(
-        body
-      ) ||
-      /sql syntax|mysql|postgres|sqlite|database error|syntax error/i.test(
-        body
-      )
+) {
+    try {
+        const parsed =
+            JSON.parse(
+                body
+            );
+
+        if (
+            parsed &&
+            parsed.vulnerable ===
+                true
+        ) {
+            return true;
+        }
+    } catch {
+        // Response was not JSON.
+    }
+
+    const lowerBody =
+        String(
+            body ||
+            ''
+        ).toLowerCase();
+
+    const indicators = [
+        'sql syntax',
+        'mysql',
+        'postgres',
+        'sqlite',
+        'database error',
+        'syntax error',
+    ];
+
+    return indicators.some(
+        indicator =>
+            lowerBody.includes(
+                indicator
+            )
     );
-  }
+}
 
   if (
     attack.attackType ===
@@ -1419,36 +1449,120 @@ async function runAttacks({
       ),
     ]);
 
-  const output =
-    await getContainerLogs(
-      container
-    );
+const rawLogs =
+  await container.logs({
+    stdout: true,
+    stderr: true,
+    follow: false
+  });
 
-  if (
-    result.StatusCode !== 0
-  ) {
-    throw new Error(
-      `Attack container failed: ${output}`
+const stdout =
+  new PassThrough();
+
+const stderr =
+  new PassThrough();
+
+const stdoutChunks = [];
+
+const stderrChunks = [];
+
+stdout.on(
+  'data',
+  chunk => {
+    stdoutChunks.push(
+      Buffer.from(chunk)
     );
   }
+);
 
-  const startMarker =
-    '__SENTINEL_ATTACK_RESULT_START__';
+stderr.on(
+  'data',
+  chunk => {
+    stderrChunks.push(
+      Buffer.from(chunk)
+    );
+  }
+);
 
-  const endMarker =
-    '__SENTINEL_ATTACK_RESULT_END__';
+docker.modem.demuxStream(
+  rawLogs,
+  stdout,
+  stderr
+);
 
-  const start =
-    output.indexOf(
-      startMarker
+await new Promise(
+  resolve => {
+    rawLogs.on(
+      'end',
+      resolve
     );
 
-  const end =
-    output.indexOf(
-      endMarker,
-      start +
-        startMarker.length
+    rawLogs.on(
+      'close',
+      resolve
     );
+
+    setTimeout(
+      resolve,
+      500
+    );
+  }
+);
+
+stdout.end();
+stderr.end();
+
+const output =
+  Buffer
+    .concat(
+      stdoutChunks
+    )
+    .toString('utf8')
+    .trim();
+
+const errorOutput =
+  Buffer
+    .concat(
+      stderrChunks
+    )
+    .toString('utf8')
+    .trim();
+
+if (
+  result.StatusCode !== 0
+) {
+  throw new Error(
+    `Attack container failed: ${
+      errorOutput ||
+      output
+    }`
+  );
+}
+
+if (errorOutput) {
+  console.log(
+    '[sandbox] Attack stderr:',
+    errorOutput
+  );
+}
+
+const startMarker =
+  '__SENTINEL_ATTACK_RESULT_START__';
+
+const endMarker =
+  '__SENTINEL_ATTACK_RESULT_END__';
+
+const start =
+  output.indexOf(
+    startMarker
+  );
+
+const end =
+  output.indexOf(
+    endMarker,
+    start +
+      startMarker.length
+  );
 
   if (
     start === -1 ||

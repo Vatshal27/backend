@@ -2,8 +2,13 @@
 
 const axios = require('axios');
 
-const OLLAMA_URL = 'http://localhost:11434/api/generate';
-const MODEL = 'qwen2.5:3b';
+const OLLAMA_URL =
+    process.env.OLLAMA_URL ||
+    'http://localhost:11434/api/generate';
+
+const MODEL =
+    process.env.MODEL ||
+    'qwen2.5:3b';
 
 const OLLAMA_OPTIONS = {
     temperature: 0.1,
@@ -15,8 +20,16 @@ const OLLAMA_OPTIONS = {
 };
 
 async function askOllama(prompt) {
-    console.log('[LLM] Sending request to Ollama...');
-    console.time('Ollama Response');
+    const timerLabel =
+        `Ollama Response ${Date.now()}-${Math.random()
+            .toString(36)
+            .slice(2, 8)}`;
+
+    console.log(
+        `[LLM] Sending request to Ollama using ${MODEL}...`
+    );
+
+    console.time(timerLabel);
 
     try {
         const response = await axios.post(
@@ -28,30 +41,41 @@ async function askOllama(prompt) {
                 format: 'json',
                 keep_alive: '10m',
                 options: OLLAMA_OPTIONS,
+            },
+            {
+                timeout: 180000,
             }
         );
-        console.timeEnd('Ollama Response');
+
+        console.timeEnd(timerLabel);
 
         if (response.data?.error) {
-            throw new Error(response.data.error);
+            throw new Error(
+                response.data.error
+            );
         }
 
         if (
             !response.data ||
             typeof response.data.response !== 'string'
         ) {
-            throw new Error('Invalid Ollama response');
+            throw new Error(
+                'Invalid Ollama response'
+            );
         }
 
-        console.log('[LLM] Response received');
+        console.log(
+            '[LLM] Response received'
+        );
 
         return response.data.response;
     } catch (error) {
-        console.timeEnd('Ollama Response');
+        console.timeEnd(timerLabel);
 
         console.error(
             '[LLM] Error:',
-            error.response?.data || error.message
+            error.response?.data ||
+            error.message
         );
 
         throw error;
