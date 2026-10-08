@@ -245,74 +245,69 @@ app.post(
 );
 
 app.post(
-    '/sandbox/run',
-    async (req, res) => {
+  '/sandbox/run',
+  async (req, res) => {
+    const findings =
+      req.body?.findings;
 
-        const findings =
-            Array.isArray(req.body?.findings)
-                ? req.body.findings
-                : [];
-
-        const mode =
-            req.body?.mode ===
-            'project-validation'
-                ? 'project-validation'
-                : 'simulation';
-
-        const targetUrl =
-            req.body?.targetUrl;
-
-        if (findings.length === 0) {
-            return res.status(400).json({
-                error:
-                    'No findings provided',
-            });
-        }
-
-        try {
-
-            let validatedTargetUrl;
-
-            if (
-                mode ===
-                'project-validation'
-            ) {
-
-                validatedTargetUrl =
-                    validateSandboxTarget(
-                        targetUrl
-                    );
-
-                console.log(
-                    `[sandbox] Project validation target: ${validatedTargetUrl}`
-                );
-            }
-
-            const report =
-                await runSandbox({
-                    findings,
-                    mode,
-                    targetUrl:
-                        validatedTargetUrl,
-                });
-
-            return res.json(
-                report
-            );
-
-        } catch (error) {
-
-            console.error(
-                '[sandbox] Error:',
-                getErrorMessage(error)
-            );
-
-            return res.status(400).json({
-                error:
-                    getErrorMessage(error),
-            });
-        }
+    if (
+      !Array.isArray(findings)
+    ) {
+      return res.status(400).json({
+        error:
+          'Findings must be an array.',
+      });
     }
+
+    const mode =
+      req.body?.mode ===
+      'project-validation'
+        ? 'project-validation'
+        : 'simulation';
+
+    const targetUrl =
+      req.body?.targetUrl;
+
+    try {
+      let validatedTargetUrl;
+
+      if (
+        mode ===
+        'project-validation'
+      ) {
+        validatedTargetUrl =
+          validateSandboxTarget(
+            targetUrl
+          );
+
+        console.log(
+          `[sandbox] Project validation target: ${validatedTargetUrl}`
+        );
+      }
+
+      const report =
+        await runSandbox({
+          findings,
+          mode,
+          targetUrl:
+            validatedTargetUrl,
+        });
+
+      return res.json(
+        report
+      );
+    } catch (error) {
+      console.error(
+        '[sandbox] Error:',
+        getErrorMessage(error)
+      );
+
+      return res.status(400).json({
+        error:
+          getErrorMessage(error),
+      });
+    }
+  }
 );
 
 app.post(

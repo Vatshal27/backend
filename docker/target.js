@@ -8,7 +8,6 @@ const {
   TARGET_BIND_HOST,
   TARGET_HEALTH_URL,
   TARGET_HOST,
-  TARGET_BROWSER_HOST,
   TARGET_INTERNAL_URL,
   SANDBOX_LIMITS,
   TARGET_HEALTH_TIMEOUT,
@@ -18,6 +17,7 @@ function generateTargetApplication(
   categories
 ) {
   return `
+'use strict';
 const http = require('http');
 const { URL } = require('url');
 const users = [
@@ -25,14 +25,14 @@ const users = [
     id: 1,
     username: 'demo_admin',
     email: 'admin@example.local',
-    role: 'administrator'
+    role: 'administrator',
   },
   {
     id: 2,
     username: 'demo_student',
     email: 'student@example.local',
-    role: 'user'
-  }
+    role: 'user',
+  },
 ];
 function json(
   res,
@@ -43,13 +43,11 @@ function json(
     status,
     {
       'Content-Type':
-        'application/json'
+        'application/json; charset=utf-8',
     }
   );
   res.end(
-    JSON.stringify(
-      body
-    )
+    JSON.stringify(body)
   );
 }
 function html(
@@ -61,12 +59,10 @@ function html(
     status,
     {
       'Content-Type':
-        'text/html; charset=utf-8'
+        'text/html; charset=utf-8',
     }
   );
-  res.end(
-    body
-  );
+  res.end(body);
 }
 function createIndexPage() {
   return [
@@ -108,7 +104,7 @@ function createIndexPage() {
     '<button type="submit">Evaluate</button>',
     '</form>',
     '</body>',
-    '</html>'
+    '</html>',
   ].join('');
 }
 const server =
@@ -133,7 +129,7 @@ const server =
             status:
               'ok',
             service:
-              'sentinelai-safe-simulation'
+              'sentinelai-safe-simulation',
           }
         );
       }
@@ -182,7 +178,7 @@ const server =
             results:
               injectionDetected
                 ? users
-                : []
+                : [],
           }
         );
       }
@@ -241,7 +237,7 @@ const server =
                 ? 'uid=1000(sentinel) gid=1000(sentinel)'
                 : 'PING localhost',
             note:
-              'No command is executed. This response is synthetic.'
+              'No command is executed. This response is synthetic.',
           }
         );
       }
@@ -270,7 +266,7 @@ const server =
             content:
               traversal
                 ? 'SIMULATED_SECRET_VALUE'
-                : 'This is a public demonstration file.'
+                : 'This is a public demonstration file.',
           }
         );
       }
@@ -288,7 +284,7 @@ const server =
               true,
             message:
               'Simulated protected administrator data',
-            users
+            users,
           }
         );
       }
@@ -320,11 +316,11 @@ const server =
                     HOME:
                       '/home/sentinel',
                     PATH:
-                      '/usr/local/bin:/usr/bin'
+                      '/usr/local/bin:/usr/bin',
                   }
                 : null,
             note:
-              'No code is executed. This response is synthetic.'
+              'No code is executed. This response is synthetic.',
           }
         );
       }
@@ -333,7 +329,7 @@ const server =
         404,
         {
           error:
-            'Not found'
+            'Not found',
         }
       );
     }
@@ -343,18 +339,48 @@ server.listen(
   '${TARGET_BIND_HOST}',
   () => {
     console.log(
-      'SentinelAI target listening on port ${TARGET_PORT}'
+      'SentinelAI Safe Simulation target listening on port ${TARGET_PORT}'
     );
   }
 );
 `;
 }
 async function createTarget(
-  networkId,
+  _networkId,
   networkName,
   containerName,
   targetCode
 ) {
+  if (
+    !networkName
+  ) {
+    throw new Error(
+      'Safe Simulation requires a Docker network.'
+    );
+  }
+  if (
+    !containerName
+  ) {
+    throw new Error(
+      'Safe Simulation requires a target container name.'
+    );
+  }
+  if (
+    typeof targetCode !==
+      'string' ||
+    !targetCode.trim()
+  ) {
+    throw new Error(
+      'Safe Simulation target code is empty.'
+    );
+  }
+  const encodedTarget =
+    Buffer.from(
+      targetCode,
+      'utf8'
+    ).toString(
+      'base64'
+    );
   const container =
     await docker.createContainer({
       name:
@@ -362,43 +388,28 @@ async function createTarget(
       Image:
         TARGET_IMAGE,
       Env: [
-        `TARGET_CODE=${Buffer.from(
-          targetCode,
-          'utf8'
-        ).toString(
-          'base64'
-        )}`,
+        `TARGET_CODE=${encodedTarget}`,
       ],
       Cmd: [
         'sh',
         '-c',
-        'echo "$TARGET_CODE" | base64 -d | node',
+        'printf "%s" "$TARGET_CODE" | base64 -d | node',
       ],
       ExposedPorts: {
         [`${TARGET_PORT}/tcp`]:
           {},
       },
       HostConfig: {
-        PortBindings: {
-          [`${TARGET_PORT}/tcp`]:
-            [
-              {
-                HostIp:
-                  TARGET_BROWSER_HOST ===
-                  'localhost'
-                    ? '127.0.0.1'
-                    : TARGET_BROWSER_HOST,
-                HostPort:
-                  '',
-              },
-            ],
-        },
+        AutoRemove:
+          false,
         Memory:
           SANDBOX_LIMITS.memory,
         NanoCpus:
           SANDBOX_LIMITS.nanoCpus,
         PidsLimit:
           SANDBOX_LIMITS.pidsLimit,
+        NetworkMode:
+          networkName,
         CapDrop: [
           'ALL',
         ],
@@ -423,38 +434,18 @@ async function createTarget(
       },
     });
   await container.start();
-  const inspection =
-    await container.inspect();
-  const bindings =
-    inspection
-      .NetworkSettings
-      ?.Ports?.[
-        `${TARGET_PORT}/tcp`
-      ];
-  if (
-    !bindings ||
-    bindings.length ===
-      0 ||
-    !bindings[0].HostPort
-  ) {
-    throw new Error(
-      'Docker did not assign a host port to the simulation target.'
-    );
-  }
-  const hostPort =
-    Number(
-      bindings[0]
-        .HostPort
-    );
   return {
     container,
-    hostPort,
+    hostPort:
+      null,
     browserUrl:
-      `http://${TARGET_BROWSER_HOST}:${hostPort}`,
+      null,
     internalUrl:
       TARGET_INTERNAL_URL,
     healthUrl:
       TARGET_HEALTH_URL,
+    isolated:
+      true,
   };
 }
 async function waitForTarget(
@@ -462,6 +453,13 @@ async function waitForTarget(
   timeoutMs =
     TARGET_HEALTH_TIMEOUT
 ) {
+  if (
+    !targetContainer
+  ) {
+    throw new Error(
+      'Safe Simulation target container is required.'
+    );
+  }
   const startedAt =
     Date.now();
   while (
@@ -474,8 +472,7 @@ async function waitForTarget(
         await targetContainer.inspect();
       if (
         !containerState.State ||
-        !containerState.State
-          .Running
+        !containerState.State.Running
       ) {
         const logs =
           await targetContainer.logs({
@@ -487,7 +484,7 @@ async function waitForTarget(
               100,
           });
         console.error(
-          '[sandbox] Target container stopped unexpectedly.'
+          '[sandbox] Safe Simulation target stopped unexpectedly.'
         );
         console.error(
           '[sandbox] Target state:',
@@ -560,6 +557,20 @@ req.setTimeout(
         ) => {
           let settled =
             false;
+          const timeout =
+            setTimeout(
+              () => {
+                if (
+                  settled
+                ) {
+                  return;
+                }
+                settled =
+                  true;
+                resolve();
+              },
+              2000
+            );
           const finish =
             () => {
               if (
@@ -569,17 +580,20 @@ req.setTimeout(
               }
               settled =
                 true;
+              clearTimeout(
+                timeout
+              );
               resolve();
             };
-          stream.on(
+          stream.once(
             'end',
             finish
           );
-          stream.on(
+          stream.once(
             'close',
             finish
           );
-          stream.on(
+          stream.once(
             'error',
             error => {
               if (
@@ -589,14 +603,13 @@ req.setTimeout(
               }
               settled =
                 true;
+              clearTimeout(
+                timeout
+              );
               reject(
                 error
               );
             }
-          );
-          setTimeout(
-            finish,
-            2000
           );
         }
       );
@@ -625,22 +638,20 @@ req.setTimeout(
         0
       ) {
         console.log(
-          '[sandbox] Target health check passed.'
+          '[sandbox] Safe Simulation target health check passed.'
         );
         return true;
       }
       console.log(
-        '[sandbox] Target health check returned exit code:',
+        '[sandbox] Safe Simulation target health check returned exit code:',
         execInspection.ExitCode
       );
     } catch (error) {
       console.log(
-        '[sandbox] Target health check retry:',
+        '[sandbox] Safe Simulation target health check retry:',
         error instanceof Error
           ? error.message
-          : String(
-              error
-            )
+          : String(error)
       );
     }
     await new Promise(
@@ -664,7 +675,7 @@ req.setTimeout(
           100,
       });
     console.error(
-      '[sandbox] Target health check failed after timeout.'
+      '[sandbox] Safe Simulation target health check failed after timeout.'
     );
     console.error(
       '[sandbox] Target state:',
@@ -678,12 +689,10 @@ req.setTimeout(
     );
   } catch (error) {
     console.error(
-      '[sandbox] Failed to inspect unhealthy target:',
+      '[sandbox] Failed to inspect unhealthy Safe Simulation target:',
       error instanceof Error
         ? error.message
-        : String(
-            error
-          )
+        : String(error)
     );
   }
   return false;
@@ -692,11 +701,19 @@ function buildTargetInfo(
   target,
   containerName
 ) {
+  if (
+    !target ||
+    !target.container
+  ) {
+    throw new Error(
+      'Safe Simulation target information is unavailable.'
+    );
+  }
   return {
     name:
-      'SentinelAI Vulnerable Target',
+      'SentinelAI Safe Simulation Target',
     url:
-      target.browserUrl,
+      target.internalUrl,
     containerId:
       target.container.id,
     status:
@@ -705,9 +722,11 @@ function buildTargetInfo(
     internalUrl:
       target.internalUrl,
     browserUrl:
-      target.browserUrl,
+      null,
     healthUrl:
       target.healthUrl,
+    isolated:
+      true,
   };
 }
 module.exports = {

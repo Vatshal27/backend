@@ -1,47 +1,39 @@
 'use strict';
-
 const crypto = require('crypto');
-
 const {
   checkDocker,
   ensureImages,
   createNetwork,
   removeNetwork,
   removeContainer,
+  startProjectProxy,
+  stopProjectProxy,
 } = require('./client');
-
 const {
   generateTargetApplication,
   createTarget,
   waitForTarget,
   buildTargetInfo,
 } = require('./target');
-
 const {
   createAttackPlan,
   createCategories,
 } = require('./planner');
-
 const {
   runAttacks,
 } = require('./runner');
-
 const {
   normalizeEvidence,
 } = require('./evidence');
-
 const {
   validateAttacks,
 } = require('./validator');
-
 const {
   buildReport,
 } = require('./report');
-
 const {
   writeReportFiles,
 } = require('./report-writer');
-
 const {
   SANDBOX_TIMEOUT,
   LOCAL_HOSTS,
@@ -64,7 +56,11 @@ function createId(
 function normalizeTargetUrl(
   targetUrl
 ) {
-  if (!targetUrl) {
+  if (
+    typeof targetUrl !==
+      'string' ||
+    !targetUrl.trim()
+  ) {
     throw new Error(
       'No project runtime URL was provided.'
     );
@@ -131,27 +127,118 @@ function createEvent(
       createId(
         'evt-'
       ),
-
     step:
       events.length + 1,
-
     timestamp:
       new Date().toISOString(),
-
     stage,
-
     ...(tool
       ? { tool }
       : {}),
-
     status,
-
     description,
-
     ...(findingId
       ? { findingId }
       : {}),
   });
+}
+
+function restoreProjectTargetUrls(
+  attacks,
+  projectProxy,
+  runtimeTarget
+) {
+  if (
+    !Array.isArray(
+      attacks
+    ) ||
+    !projectProxy ||
+    !runtimeTarget
+  ) {
+    return attacks;
+  }
+
+  const runtimeOrigin =
+    new URL(
+      runtimeTarget
+    ).origin;
+
+  const proxyOrigins =
+    [
+      projectProxy.localUrl,
+      projectProxy.dockerUrl,
+    ]
+      .filter(Boolean)
+      .map(
+        value =>
+          new URL(
+            value
+          ).origin
+      );
+
+  function restore(
+    value
+  ) {
+    if (
+      typeof value !==
+      'string'
+    ) {
+      return value;
+    }
+
+    let restored =
+      value;
+
+    for (
+      const proxyOrigin of
+        proxyOrigins
+    ) {
+      restored =
+        restored
+          .split(
+            proxyOrigin
+          )
+          .join(
+            runtimeOrigin
+          );
+    }
+
+    return restored;
+  }
+
+  return attacks.map(
+    attack => ({
+      ...attack,
+      target:
+        restore(
+          attack.target
+        ),
+      request:
+        attack.request
+          ? {
+              ...attack.request,
+              url:
+                restore(
+                  attack.request.url
+                ),
+            }
+          : attack.request,
+      evidence:
+        Array.isArray(
+          attack.evidence
+        )
+          ? attack.evidence.map(
+              item => ({
+                ...item,
+                content:
+                  restore(
+                    item.content
+                  ),
+              })
+            )
+          : attack.evidence,
+    })
+  );
 }
 
 async function runSandbox(
@@ -193,32 +280,45 @@ async function runSandbox(
   const events = [];
 
   const containers = {
-    target: null,
-    attacker: null,
-    scanner: null,
+    target:
+      null,
+    attacker:
+      null,
+    scanner:
+      null,
   };
 
-  let network = null;
-  let target = null;
-  let targetBrowserUrl = null;
-  let targetInternalUrl = null;
+  let network =
+    null;
+
+  let targetDetails =
+    null;
+
+  let projectProxy =
+    null;
 
   const runtimeTarget =
-    mode === 'project-validation'
+    mode ===
+      'project-validation'
       ? normalizeTargetUrl(
           targetUrl
         )
       : null;
-const sandboxState = {
-  sandboxId,
-  network: null,
-  containers,
-};
 
-activeSandboxes.set(
-  sandboxId,
-  sandboxState
-);
+  const sandboxState = {
+    sandboxId,
+    network:
+      null,
+    containers,
+    proxy:
+      null,
+  };
+
+  activeSandboxes.set(
+    sandboxId,
+    sandboxState
+  );
+
   try {
     createEvent(
       events,
@@ -227,7 +327,7 @@ activeSandboxes.set(
       mode ===
         'project-validation'
         ? 'Initializing controlled validation against the local project runtime.'
-        : 'Initializing isolated simulation environment.'
+        : 'Initializing isolated Safe Simulation environment.'
     );
 
     const dockerStatus =
@@ -251,7 +351,8 @@ activeSandboxes.set(
 
     await ensureImages({
       includeTarget:
-        mode === 'simulation',
+        mode ===
+        'simulation',
     });
 
     createEvent(
@@ -271,19 +372,19 @@ activeSandboxes.set(
         }
       );
 
-if (
-  !network ||
-  !network.id ||
-  !network.name ||
-  !network.dockerNetwork
-) {
-  throw new Error(
-    'Docker network was not created correctly.'
-  );
-}
+    if (
+      !network ||
+      !network.id ||
+      !network.name ||
+      !network.dockerNetwork
+    ) {
+      throw new Error(
+        'Docker network was not created correctly.'
+      );
+    }
 
-sandboxState.network =
-  network.dockerNetwork;
+    sandboxState.network =
+      network.dockerNetwork;
 
     console.log(
       '[sandbox] Docker network:',
@@ -297,14 +398,15 @@ sandboxState.network =
       'success',
       mode ===
         'project-validation'
-        ? 'Controlled validator network created with local host access.'
-        : 'Isolated validator network created.'
+        ? 'Controlled bridge network created with local host access.'
+        : 'Isolated internal Docker network created for Safe Simulation.'
     );
 
     let attackTargetUrl;
 
     if (
-      mode === 'simulation'
+      mode ===
+      'simulation'
     ) {
       const categories =
         createCategories(
@@ -320,7 +422,7 @@ sandboxState.network =
       const targetName =
         `sentinelai-target-${sandboxId}`;
 
-      const createdTarget =
+      targetDetails =
         await createTarget(
           network.id,
           network.name,
@@ -328,33 +430,36 @@ sandboxState.network =
           targetCode
         );
 
-      target =
-        createdTarget.container;
+      if (
+        !targetDetails ||
+        !targetDetails.container ||
+        !targetDetails.internalUrl
+      ) {
+        throw new Error(
+          'Safe Simulation target was not created correctly.'
+        );
+      }
 
       containers.target =
-        createdTarget.container;
-
-      targetBrowserUrl =
-        createdTarget.browserUrl;
-
-      targetInternalUrl =
-        createdTarget.internalUrl;
+        targetDetails.container;
 
       createEvent(
         events,
         'target',
         'running',
-        `Synthetic target started at ${targetBrowserUrl}.`
+        `Synthetic Safe Simulation target started at ${targetDetails.internalUrl}.`
       );
 
       const ready =
         await waitForTarget(
-          createdTarget.container
+          targetDetails.container
         );
 
-      if (!ready) {
+      if (
+        !ready
+      ) {
         throw new Error(
-          'Synthetic target failed its health check.'
+          'Safe Simulation target failed its health check.'
         );
       }
 
@@ -362,20 +467,38 @@ sandboxState.network =
         events,
         'target',
         'success',
-        `Synthetic target is healthy and available at ${targetBrowserUrl}.`
+        `Synthetic Safe Simulation target is healthy inside the isolated sandbox at ${targetDetails.internalUrl}.`
       );
 
       attackTargetUrl =
-        targetInternalUrl;
+        targetDetails.internalUrl;
     } else {
+      projectProxy =
+        await startProjectProxy(
+          runtimeTarget
+        );
+
+      sandboxState.proxy =
+        projectProxy;
+
       attackTargetUrl =
-        runtimeTarget;
+        projectProxy.localUrl;
+
+      console.log(
+        '[sandbox] Original project target:',
+        runtimeTarget
+      );
+
+      console.log(
+        '[sandbox] Proxy target:',
+        projectProxy.dockerUrl
+      );
 
       createEvent(
         events,
         'target',
         'success',
-        `Using local project runtime at ${runtimeTarget}.`
+        `Local project runtime ${runtimeTarget} is available through the temporary SentinelAI validation proxy.`
       );
     }
 
@@ -388,6 +511,11 @@ sandboxState.network =
     }
 
     console.log(
+      '[sandbox] Mode:',
+      mode
+    );
+
+    console.log(
       '[sandbox] Attack target:',
       attackTargetUrl
     );
@@ -397,6 +525,16 @@ sandboxState.network =
         findings,
         attackTargetUrl
       );
+
+    if (
+      !Array.isArray(
+        plans
+      )
+    ) {
+      throw new Error(
+        'Runtime planner returned an invalid plan set.'
+      );
+    }
 
     createEvent(
       events,
@@ -410,24 +548,22 @@ sandboxState.network =
         runAttacks({
           networkName:
             network.name,
-
           containerName:
             `sentinelai-attacker-${sandboxId}`,
-
           findings,
-
           plans,
-
           targetUrl:
             attackTargetUrl,
-
           projectValidation:
             mode ===
             'project-validation',
         }),
 
         new Promise(
-          (_, reject) =>
+          (
+            _,
+            reject
+          ) =>
             setTimeout(
               () =>
                 reject(
@@ -440,13 +576,37 @@ sandboxState.network =
         ),
       ]);
 
-    const attacks =
+    if (
+      !attackExecution ||
+      !Array.isArray(
+        attackExecution.attacks
+      )
+    ) {
+      throw new Error(
+        'Runtime attacker returned an invalid result.'
+      );
+    }
+
+    containers.attacker =
+      attackExecution.container ||
+      null;
+
+    let attacks =
       normalizeEvidence(
         attackExecution.attacks
       );
 
-    containers.attacker =
-      attackExecution.container;
+    if (
+      mode ===
+      'project-validation'
+    ) {
+      attacks =
+        restoreProjectTargetUrls(
+          attacks,
+          projectProxy,
+          runtimeTarget
+        );
+    }
 
     createEvent(
       events,
@@ -480,94 +640,79 @@ sandboxState.network =
       reportTarget = {
         name:
           'Local Project Runtime',
-
         url:
           runtimeTarget,
-
         containerId:
           '',
-
         status:
           'running',
+        internalUrl:
+          null,
+        browserUrl:
+          runtimeTarget,
+        healthUrl:
+          runtimeTarget,
+        isolated:
+          false,
       };
     } else {
       reportTarget =
         buildTargetInfo(
-          {
-            container:
-              target,
-
-            browserUrl:
-              targetBrowserUrl,
-
-            internalUrl:
-              targetInternalUrl,
-          },
-
+          targetDetails,
           `sentinelai-target-${sandboxId}`
         );
     }
 
-const report =
-  buildReport({
-    sandboxId,
+    const report =
+      buildReport({
+        sandboxId,
+        mode,
+        startedAt,
+        finishedAt,
+        target:
+          reportTarget,
+        containers,
+        events,
+        attacks,
+        validations,
+        findings,
+      });
 
-    mode,
+    const reportFiles =
+      await writeReportFiles(
+        report
+      );
 
-    startedAt,
+    report.reportFiles =
+      reportFiles;
 
-    finishedAt,
-
-    target:
-      reportTarget,
-
-    containers,
-
-    events,
-
-    attacks,
-
-    validations,
-
-    findings,
-  });
-
-const reportFiles =
-  await writeReportFiles(
-    report
-  );
-
-report.reportFiles =
-  reportFiles;
-
-return report;
+    return report;
   } catch (error) {
     createEvent(
       events,
-      'initialization',
+      'sandbox',
       'failed',
       error instanceof Error
         ? error.message
-        : String(error)
+        : String(
+            error
+          )
     );
 
     throw error;
   } finally {
-    if (
-      containers.attacker
-    ) {
-      await removeContainer(
+    await Promise.allSettled([
+      removeContainer(
         containers.attacker
-      );
-    }
-
-    if (
-      containers.target
-    ) {
-      await removeContainer(
+      ),
+      removeContainer(
         containers.target
-      );
-    }
+      ),
+    ]);
+
+    await stopProjectProxy(
+      projectProxy
+    );
 
     if (
       network
@@ -592,26 +737,43 @@ async function stopSandbox(
           activeSandboxes.get(
             sandboxId
           ),
-        ].filter(Boolean)
+        ].filter(
+          Boolean
+        )
       : Array.from(
           activeSandboxes.values()
         );
 
-  if (!states.length) {
+  if (
+    !states.length
+  ) {
     return {
-      stopped: 0,
+      stopped:
+        0,
+      ...(sandboxId
+        ? {
+            sandboxId,
+          }
+        : {}),
     };
   }
 
   await Promise.allSettled(
     states.map(
       async state => {
-        await removeContainer(
-          state.containers?.attacker
-        );
+        await Promise.allSettled([
+          removeContainer(
+            state.containers
+              ?.attacker
+          ),
+          removeContainer(
+            state.containers
+              ?.target
+          ),
+        ]);
 
-        await removeContainer(
-          state.containers?.target
+        await stopProjectProxy(
+          state.proxy
         );
 
         await removeNetwork(
@@ -632,7 +794,6 @@ async function stopSandbox(
   return {
     stopped:
       states.length,
-
     ...(sandboxId
       ? {
           sandboxId,
@@ -645,4 +806,4 @@ module.exports = {
   checkDocker,
   runSandbox,
   stopSandbox,
-};  
+};
