@@ -196,19 +196,23 @@ function compileReports({
             : []
         );
 
-  const staticFindings =
-    Array.isArray(
-      projectReport?.staticFindings
-    )
-      ? projectReport.staticFindings
-      : [];
+const sourceReport =
+  projectReport ||
+  simulationReport;
 
-  const aiFindings =
-    Array.isArray(
-      projectReport?.aiFindings
-    )
-      ? projectReport.aiFindings
-      : [];
+const staticFindings =
+  Array.isArray(
+    sourceReport?.staticFindings
+  )
+    ? sourceReport.staticFindings
+    : [];
+
+const aiFindings =
+  Array.isArray(
+    sourceReport?.aiFindings
+  )
+    ? sourceReport.aiFindings
+    : [];
 
   return {
     schemaVersion: '1.1',

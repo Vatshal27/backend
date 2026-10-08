@@ -28,6 +28,11 @@ const {
 const {
   validateAttacks,
 } = require('./validator');
+
+const {
+  buildReport,
+} = require('./report');
+
 const {
   compileReports,
 } = require(
@@ -146,73 +151,6 @@ function createEvent(
   });
 }
 
-function buildReport({
-  sandboxId,
-  mode,
-  startedAt,
-  finishedAt,
-  target,
-  containers,
-  events,
-  attacks,
-  validations,
-  findings,
-}) {
-  return {
-    sandboxId,
-    mode,
-    startedAt,
-    finishedAt,
-    target:
-      target ||
-      null,
-    containers:
-      containers || {
-        target:
-          null,
-        attacker:
-          null,
-        scanner:
-          null,
-      },
-    events:
-      Array.isArray(
-        events
-      )
-        ? events
-        : [],
-    attacks:
-      Array.isArray(
-        attacks
-      )
-        ? attacks
-        : [],
-    validations:
-      Array.isArray(
-        validations
-      )
-        ? validations
-        : [],
-    findings:
-      Array.isArray(
-        findings
-      )
-        ? findings
-        : [],
-    project:
-      null,
-    reportFiles:
-      null,
-    compilation: {
-      status:
-        'pending',
-      safeSimulationIncluded:
-        false,
-      projectValidationIncluded:
-        false,
-    },
-  };
-}
 
 function restoreProjectTargetUrls(
   attacks,
