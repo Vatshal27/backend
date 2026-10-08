@@ -1,0 +1,809 @@
+{
+  "sandboxId": "sandbox-92300abb20bd",
+  "mode": "project-validation",
+  "startedAt": "2026-10-08T17:34:41.372Z",
+  "finishedAt": "2026-10-08T17:34:41.904Z",
+  "target": {
+    "name": "Local Project Runtime",
+    "url": "http://localhost:5000",
+    "containerId": "",
+    "status": "running",
+    "internalUrl": null,
+    "browserUrl": "http://localhost:5000",
+    "healthUrl": "http://localhost:5000",
+    "isolated": false
+  },
+  "containers": [
+    {
+      "id": "e6eff7502e348205f838bab6414e1f62767e7c432dab8bab98b57f79b8f2b3bd",
+      "role": "attacker",
+      "status": "completed"
+    }
+  ],
+  "findings": [],
+  "staticFindings": [],
+  "aiFindings": [],
+  "runtime": {
+    "attacks": [
+      {
+        "id": "atk-4397119443a4",
+        "findingId": "runtime-sqli",
+        "tool": "runtime-generic",
+        "attackType": "sqli",
+        "target": "http://localhost:5000/",
+        "status": "inconclusive",
+        "payload": "' OR '1'='1",
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:5000/?q=%27+OR+%271%27%3D%271",
+          "parameter": "q"
+        },
+        "response": {
+          "statusCode": 200,
+          "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+        },
+        "startedAt": "2026-10-08T17:34:41.789Z",
+        "finishedAt": "2026-10-08T17:34:41.799Z",
+        "evidence": [
+          {
+            "id": "ev-3d1319781d0c",
+            "type": "request",
+            "timestamp": "2026-10-08T17:34:41.789Z",
+            "source": "runtime-generic",
+            "content": "GET http://localhost:5000/?q=%27+OR+%271%27%3D%271"
+          },
+          {
+            "id": "ev-b05f3fb0aa5b",
+            "type": "response",
+            "timestamp": "2026-10-08T17:34:41.799Z",
+            "source": "project-runtime",
+            "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+          },
+          {
+            "id": "ev-fe8ab25c74c5",
+            "type": "log",
+            "timestamp": "2026-10-08T17:34:41.799Z",
+            "source": "route-discovery",
+            "content": "Selected route: {\"method\":\"GET\",\"url\":\"http://localhost:5000/\",\"source\":\"root\",\"parameters\":[]}"
+          }
+        ]
+      },
+      {
+        "id": "atk-bd90fa9f365c",
+        "findingId": "runtime-xss",
+        "tool": "runtime-generic",
+        "attackType": "xss",
+        "target": "http://localhost:5000/",
+        "status": "inconclusive",
+        "payload": "<script>alert(1)</script>",
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:5000/?name=%3Cscript%3Ealert%281%29%3C%2Fscript%3E",
+          "parameter": "name"
+        },
+        "response": {
+          "statusCode": 200,
+          "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+        },
+        "startedAt": "2026-10-08T17:34:41.799Z",
+        "finishedAt": "2026-10-08T17:34:41.802Z",
+        "evidence": [
+          {
+            "id": "ev-3d1319781d0c",
+            "type": "request",
+            "timestamp": "2026-10-08T17:34:41.799Z",
+            "source": "runtime-generic",
+            "content": "GET http://localhost:5000/?name=%3Cscript%3Ealert%281%29%3C%2Fscript%3E"
+          },
+          {
+            "id": "ev-b05f3fb0aa5b",
+            "type": "response",
+            "timestamp": "2026-10-08T17:34:41.802Z",
+            "source": "project-runtime",
+            "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+          },
+          {
+            "id": "ev-fe8ab25c74c5",
+            "type": "log",
+            "timestamp": "2026-10-08T17:34:41.802Z",
+            "source": "route-discovery",
+            "content": "Selected route: {\"method\":\"GET\",\"url\":\"http://localhost:5000/\",\"source\":\"root\",\"parameters\":[]}"
+          }
+        ]
+      },
+      {
+        "id": "atk-62457dc416de",
+        "findingId": "runtime-cmdi",
+        "tool": "runtime-generic",
+        "attackType": "cmdi",
+        "target": "http://localhost:5000/",
+        "status": "inconclusive",
+        "payload": "localhost;whoami",
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:5000/?host=localhost%3Bwhoami",
+          "parameter": "host"
+        },
+        "response": {
+          "statusCode": 200,
+          "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+        },
+        "startedAt": "2026-10-08T17:34:41.802Z",
+        "finishedAt": "2026-10-08T17:34:41.804Z",
+        "evidence": [
+          {
+            "id": "ev-3d1319781d0c",
+            "type": "request",
+            "timestamp": "2026-10-08T17:34:41.802Z",
+            "source": "runtime-generic",
+            "content": "GET http://localhost:5000/?host=localhost%3Bwhoami"
+          },
+          {
+            "id": "ev-b05f3fb0aa5b",
+            "type": "response",
+            "timestamp": "2026-10-08T17:34:41.804Z",
+            "source": "project-runtime",
+            "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+          },
+          {
+            "id": "ev-fe8ab25c74c5",
+            "type": "log",
+            "timestamp": "2026-10-08T17:34:41.804Z",
+            "source": "route-discovery",
+            "content": "Selected route: {\"method\":\"GET\",\"url\":\"http://localhost:5000/\",\"source\":\"root\",\"parameters\":[]}"
+          }
+        ]
+      },
+      {
+        "id": "atk-85bae216c661",
+        "findingId": "runtime-path-traversal",
+        "tool": "runtime-generic",
+        "attackType": "path_traversal",
+        "target": "http://localhost:5000/",
+        "status": "inconclusive",
+        "payload": "../secret.txt",
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:5000/?file=..%2Fsecret.txt",
+          "parameter": "file"
+        },
+        "response": {
+          "statusCode": 200,
+          "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+        },
+        "startedAt": "2026-10-08T17:34:41.804Z",
+        "finishedAt": "2026-10-08T17:34:41.807Z",
+        "evidence": [
+          {
+            "id": "ev-3d1319781d0c",
+            "type": "request",
+            "timestamp": "2026-10-08T17:34:41.804Z",
+            "source": "runtime-generic",
+            "content": "GET http://localhost:5000/?file=..%2Fsecret.txt"
+          },
+          {
+            "id": "ev-b05f3fb0aa5b",
+            "type": "response",
+            "timestamp": "2026-10-08T17:34:41.807Z",
+            "source": "project-runtime",
+            "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+          },
+          {
+            "id": "ev-fe8ab25c74c5",
+            "type": "log",
+            "timestamp": "2026-10-08T17:34:41.807Z",
+            "source": "route-discovery",
+            "content": "Selected route: {\"method\":\"GET\",\"url\":\"http://localhost:5000/\",\"source\":\"root\",\"parameters\":[]}"
+          }
+        ]
+      },
+      {
+        "id": "atk-59d2bfbef8bc",
+        "findingId": "runtime-auth-bypass",
+        "tool": "runtime-generic",
+        "attackType": "auth_bypass",
+        "target": "http://localhost:5000/",
+        "status": "success",
+        "payload": "Unauthenticated GET /admin",
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:5000/"
+        },
+        "response": {
+          "statusCode": 200,
+          "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+        },
+        "startedAt": "2026-10-08T17:34:41.807Z",
+        "finishedAt": "2026-10-08T17:34:41.811Z",
+        "evidence": [
+          {
+            "id": "ev-3d1319781d0c",
+            "type": "request",
+            "timestamp": "2026-10-08T17:34:41.807Z",
+            "source": "runtime-generic",
+            "content": "GET http://localhost:5000/"
+          },
+          {
+            "id": "ev-b05f3fb0aa5b",
+            "type": "response",
+            "timestamp": "2026-10-08T17:34:41.811Z",
+            "source": "project-runtime",
+            "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+          },
+          {
+            "id": "ev-fe8ab25c74c5",
+            "type": "log",
+            "timestamp": "2026-10-08T17:34:41.811Z",
+            "source": "route-discovery",
+            "content": "Selected route: {\"method\":\"GET\",\"url\":\"http://localhost:5000/\",\"source\":\"root\",\"parameters\":[]}"
+          },
+          {
+            "id": "ev-bcbcd14c33fa",
+            "type": "finding",
+            "timestamp": "2026-10-08T17:34:41.811Z",
+            "source": "runtime-generic",
+            "content": "Runtime behavior matched the expected vulnerability signal."
+          }
+        ]
+      },
+      {
+        "id": "atk-c39c8868ecd2",
+        "findingId": "runtime-code-injection",
+        "tool": "runtime-generic",
+        "attackType": "code_injection",
+        "target": "http://localhost:5000/",
+        "status": "inconclusive",
+        "payload": "process.env",
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:5000/?code=process.env",
+          "parameter": "code"
+        },
+        "response": {
+          "statusCode": 200,
+          "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+        },
+        "startedAt": "2026-10-08T17:34:41.811Z",
+        "finishedAt": "2026-10-08T17:34:41.814Z",
+        "evidence": [
+          {
+            "id": "ev-3d1319781d0c",
+            "type": "request",
+            "timestamp": "2026-10-08T17:34:41.811Z",
+            "source": "runtime-generic",
+            "content": "GET http://localhost:5000/?code=process.env"
+          },
+          {
+            "id": "ev-b05f3fb0aa5b",
+            "type": "response",
+            "timestamp": "2026-10-08T17:34:41.814Z",
+            "source": "project-runtime",
+            "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+          },
+          {
+            "id": "ev-fe8ab25c74c5",
+            "type": "log",
+            "timestamp": "2026-10-08T17:34:41.814Z",
+            "source": "route-discovery",
+            "content": "Selected route: {\"method\":\"GET\",\"url\":\"http://localhost:5000/\",\"source\":\"root\",\"parameters\":[]}"
+          }
+        ]
+      }
+    ],
+    "validations": [
+      {
+        "findingId": "runtime-sqli",
+        "source": "runtime",
+        "attackType": "sqli",
+        "result": "inconclusive",
+        "confidence": 50,
+        "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+        "attackId": "atk-4397119443a4"
+      },
+      {
+        "findingId": "runtime-xss",
+        "source": "runtime",
+        "attackType": "xss",
+        "result": "inconclusive",
+        "confidence": 50,
+        "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+        "attackId": "atk-bd90fa9f365c"
+      },
+      {
+        "findingId": "runtime-cmdi",
+        "source": "runtime",
+        "attackType": "cmdi",
+        "result": "inconclusive",
+        "confidence": 50,
+        "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+        "attackId": "atk-62457dc416de"
+      },
+      {
+        "findingId": "runtime-path-traversal",
+        "source": "runtime",
+        "attackType": "path_traversal",
+        "result": "inconclusive",
+        "confidence": 50,
+        "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+        "attackId": "atk-85bae216c661"
+      },
+      {
+        "findingId": "runtime-auth-bypass",
+        "source": "runtime",
+        "attackType": "auth_bypass",
+        "result": "confirmed",
+        "confidence": 95,
+        "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+        "attackId": "atk-59d2bfbef8bc"
+      },
+      {
+        "findingId": "runtime-code-injection",
+        "source": "runtime",
+        "attackType": "code_injection",
+        "result": "inconclusive",
+        "confidence": 50,
+        "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+        "attackId": "atk-c39c8868ecd2"
+      }
+    ],
+    "confirmedVulnerabilities": [
+      {
+        "findingId": "runtime-auth-bypass",
+        "source": "runtime",
+        "attackType": "auth_bypass",
+        "result": "confirmed",
+        "confidence": 95,
+        "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+        "attackId": "atk-59d2bfbef8bc"
+      }
+    ],
+    "inconclusiveFindings": [
+      {
+        "findingId": "runtime-sqli",
+        "source": "runtime",
+        "attackType": "sqli",
+        "result": "inconclusive",
+        "confidence": 50,
+        "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+        "attackId": "atk-4397119443a4"
+      },
+      {
+        "findingId": "runtime-xss",
+        "source": "runtime",
+        "attackType": "xss",
+        "result": "inconclusive",
+        "confidence": 50,
+        "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+        "attackId": "atk-bd90fa9f365c"
+      },
+      {
+        "findingId": "runtime-cmdi",
+        "source": "runtime",
+        "attackType": "cmdi",
+        "result": "inconclusive",
+        "confidence": 50,
+        "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+        "attackId": "atk-62457dc416de"
+      },
+      {
+        "findingId": "runtime-path-traversal",
+        "source": "runtime",
+        "attackType": "path_traversal",
+        "result": "inconclusive",
+        "confidence": 50,
+        "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+        "attackId": "atk-85bae216c661"
+      },
+      {
+        "findingId": "runtime-code-injection",
+        "source": "runtime",
+        "attackType": "code_injection",
+        "result": "inconclusive",
+        "confidence": 50,
+        "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+        "attackId": "atk-c39c8868ecd2"
+      }
+    ],
+    "failedTests": []
+  },
+  "events": [
+    {
+      "id": "evt-e9fa992bea92",
+      "step": 1,
+      "timestamp": "2026-10-08T17:34:41.372Z",
+      "stage": "initialization",
+      "status": "started",
+      "description": "Initializing controlled validation against the local project runtime."
+    },
+    {
+      "id": "evt-a527df48d68d",
+      "step": 2,
+      "timestamp": "2026-10-08T17:34:41.384Z",
+      "stage": "initialization",
+      "status": "success",
+      "description": "Docker 29.8.1 is available."
+    },
+    {
+      "id": "evt-7e5b548a113c",
+      "step": 3,
+      "timestamp": "2026-10-08T17:34:41.410Z",
+      "stage": "initialization",
+      "status": "success",
+      "description": "Required sandbox images are available."
+    },
+    {
+      "id": "evt-c2c5645890e2",
+      "step": 4,
+      "timestamp": "2026-10-08T17:34:41.445Z",
+      "stage": "network",
+      "status": "success",
+      "description": "Controlled bridge network created with local host access."
+    },
+    {
+      "id": "evt-133ecd373f24",
+      "step": 5,
+      "timestamp": "2026-10-08T17:34:41.446Z",
+      "stage": "target",
+      "status": "success",
+      "description": "Local project runtime http://localhost:5000 is available through the temporary SentinelAI validation proxy."
+    },
+    {
+      "id": "evt-8951e6cf6592",
+      "step": 6,
+      "timestamp": "2026-10-08T17:34:41.446Z",
+      "stage": "attack",
+      "status": "success",
+      "description": "6 runtime validation plan(s) created."
+    },
+    {
+      "id": "evt-daf60439ab28",
+      "step": 7,
+      "timestamp": "2026-10-08T17:34:41.904Z",
+      "stage": "attack",
+      "status": "success",
+      "description": "6 validation attack(s) completed."
+    },
+    {
+      "id": "evt-9da11829d697",
+      "step": 8,
+      "timestamp": "2026-10-08T17:34:41.904Z",
+      "stage": "evidence",
+      "status": "success",
+      "description": "Validation evidence normalized and verdicts generated."
+    }
+  ],
+  "attacks": [
+    {
+      "id": "atk-4397119443a4",
+      "findingId": "runtime-sqli",
+      "tool": "runtime-generic",
+      "attackType": "sqli",
+      "target": "http://localhost:5000/",
+      "status": "inconclusive",
+      "payload": "' OR '1'='1",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:5000/?q=%27+OR+%271%27%3D%271",
+        "parameter": "q"
+      },
+      "response": {
+        "statusCode": 200,
+        "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+      },
+      "startedAt": "2026-10-08T17:34:41.789Z",
+      "finishedAt": "2026-10-08T17:34:41.799Z",
+      "evidence": [
+        {
+          "id": "ev-3d1319781d0c",
+          "type": "request",
+          "timestamp": "2026-10-08T17:34:41.789Z",
+          "source": "runtime-generic",
+          "content": "GET http://localhost:5000/?q=%27+OR+%271%27%3D%271"
+        },
+        {
+          "id": "ev-b05f3fb0aa5b",
+          "type": "response",
+          "timestamp": "2026-10-08T17:34:41.799Z",
+          "source": "project-runtime",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+        },
+        {
+          "id": "ev-fe8ab25c74c5",
+          "type": "log",
+          "timestamp": "2026-10-08T17:34:41.799Z",
+          "source": "route-discovery",
+          "content": "Selected route: {\"method\":\"GET\",\"url\":\"http://localhost:5000/\",\"source\":\"root\",\"parameters\":[]}"
+        }
+      ]
+    },
+    {
+      "id": "atk-bd90fa9f365c",
+      "findingId": "runtime-xss",
+      "tool": "runtime-generic",
+      "attackType": "xss",
+      "target": "http://localhost:5000/",
+      "status": "inconclusive",
+      "payload": "<script>alert(1)</script>",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:5000/?name=%3Cscript%3Ealert%281%29%3C%2Fscript%3E",
+        "parameter": "name"
+      },
+      "response": {
+        "statusCode": 200,
+        "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+      },
+      "startedAt": "2026-10-08T17:34:41.799Z",
+      "finishedAt": "2026-10-08T17:34:41.802Z",
+      "evidence": [
+        {
+          "id": "ev-3d1319781d0c",
+          "type": "request",
+          "timestamp": "2026-10-08T17:34:41.799Z",
+          "source": "runtime-generic",
+          "content": "GET http://localhost:5000/?name=%3Cscript%3Ealert%281%29%3C%2Fscript%3E"
+        },
+        {
+          "id": "ev-b05f3fb0aa5b",
+          "type": "response",
+          "timestamp": "2026-10-08T17:34:41.802Z",
+          "source": "project-runtime",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+        },
+        {
+          "id": "ev-fe8ab25c74c5",
+          "type": "log",
+          "timestamp": "2026-10-08T17:34:41.802Z",
+          "source": "route-discovery",
+          "content": "Selected route: {\"method\":\"GET\",\"url\":\"http://localhost:5000/\",\"source\":\"root\",\"parameters\":[]}"
+        }
+      ]
+    },
+    {
+      "id": "atk-62457dc416de",
+      "findingId": "runtime-cmdi",
+      "tool": "runtime-generic",
+      "attackType": "cmdi",
+      "target": "http://localhost:5000/",
+      "status": "inconclusive",
+      "payload": "localhost;whoami",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:5000/?host=localhost%3Bwhoami",
+        "parameter": "host"
+      },
+      "response": {
+        "statusCode": 200,
+        "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+      },
+      "startedAt": "2026-10-08T17:34:41.802Z",
+      "finishedAt": "2026-10-08T17:34:41.804Z",
+      "evidence": [
+        {
+          "id": "ev-3d1319781d0c",
+          "type": "request",
+          "timestamp": "2026-10-08T17:34:41.802Z",
+          "source": "runtime-generic",
+          "content": "GET http://localhost:5000/?host=localhost%3Bwhoami"
+        },
+        {
+          "id": "ev-b05f3fb0aa5b",
+          "type": "response",
+          "timestamp": "2026-10-08T17:34:41.804Z",
+          "source": "project-runtime",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+        },
+        {
+          "id": "ev-fe8ab25c74c5",
+          "type": "log",
+          "timestamp": "2026-10-08T17:34:41.804Z",
+          "source": "route-discovery",
+          "content": "Selected route: {\"method\":\"GET\",\"url\":\"http://localhost:5000/\",\"source\":\"root\",\"parameters\":[]}"
+        }
+      ]
+    },
+    {
+      "id": "atk-85bae216c661",
+      "findingId": "runtime-path-traversal",
+      "tool": "runtime-generic",
+      "attackType": "path_traversal",
+      "target": "http://localhost:5000/",
+      "status": "inconclusive",
+      "payload": "../secret.txt",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:5000/?file=..%2Fsecret.txt",
+        "parameter": "file"
+      },
+      "response": {
+        "statusCode": 200,
+        "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+      },
+      "startedAt": "2026-10-08T17:34:41.804Z",
+      "finishedAt": "2026-10-08T17:34:41.807Z",
+      "evidence": [
+        {
+          "id": "ev-3d1319781d0c",
+          "type": "request",
+          "timestamp": "2026-10-08T17:34:41.804Z",
+          "source": "runtime-generic",
+          "content": "GET http://localhost:5000/?file=..%2Fsecret.txt"
+        },
+        {
+          "id": "ev-b05f3fb0aa5b",
+          "type": "response",
+          "timestamp": "2026-10-08T17:34:41.807Z",
+          "source": "project-runtime",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+        },
+        {
+          "id": "ev-fe8ab25c74c5",
+          "type": "log",
+          "timestamp": "2026-10-08T17:34:41.807Z",
+          "source": "route-discovery",
+          "content": "Selected route: {\"method\":\"GET\",\"url\":\"http://localhost:5000/\",\"source\":\"root\",\"parameters\":[]}"
+        }
+      ]
+    },
+    {
+      "id": "atk-59d2bfbef8bc",
+      "findingId": "runtime-auth-bypass",
+      "tool": "runtime-generic",
+      "attackType": "auth_bypass",
+      "target": "http://localhost:5000/",
+      "status": "success",
+      "payload": "Unauthenticated GET /admin",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:5000/"
+      },
+      "response": {
+        "statusCode": 200,
+        "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+      },
+      "startedAt": "2026-10-08T17:34:41.807Z",
+      "finishedAt": "2026-10-08T17:34:41.811Z",
+      "evidence": [
+        {
+          "id": "ev-3d1319781d0c",
+          "type": "request",
+          "timestamp": "2026-10-08T17:34:41.807Z",
+          "source": "runtime-generic",
+          "content": "GET http://localhost:5000/"
+        },
+        {
+          "id": "ev-b05f3fb0aa5b",
+          "type": "response",
+          "timestamp": "2026-10-08T17:34:41.811Z",
+          "source": "project-runtime",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+        },
+        {
+          "id": "ev-fe8ab25c74c5",
+          "type": "log",
+          "timestamp": "2026-10-08T17:34:41.811Z",
+          "source": "route-discovery",
+          "content": "Selected route: {\"method\":\"GET\",\"url\":\"http://localhost:5000/\",\"source\":\"root\",\"parameters\":[]}"
+        },
+        {
+          "id": "ev-bcbcd14c33fa",
+          "type": "finding",
+          "timestamp": "2026-10-08T17:34:41.811Z",
+          "source": "runtime-generic",
+          "content": "Runtime behavior matched the expected vulnerability signal."
+        }
+      ]
+    },
+    {
+      "id": "atk-c39c8868ecd2",
+      "findingId": "runtime-code-injection",
+      "tool": "runtime-generic",
+      "attackType": "code_injection",
+      "target": "http://localhost:5000/",
+      "status": "inconclusive",
+      "payload": "process.env",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:5000/?code=process.env",
+        "parameter": "code"
+      },
+      "response": {
+        "statusCode": 200,
+        "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+      },
+      "startedAt": "2026-10-08T17:34:41.811Z",
+      "finishedAt": "2026-10-08T17:34:41.814Z",
+      "evidence": [
+        {
+          "id": "ev-3d1319781d0c",
+          "type": "request",
+          "timestamp": "2026-10-08T17:34:41.811Z",
+          "source": "runtime-generic",
+          "content": "GET http://localhost:5000/?code=process.env"
+        },
+        {
+          "id": "ev-b05f3fb0aa5b",
+          "type": "response",
+          "timestamp": "2026-10-08T17:34:41.814Z",
+          "source": "project-runtime",
+          "content": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Professional Vulnerability Scanner</title>\n\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\"/>\n</head>\n<body>\n  <div class=\"container\">\n\n    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;\">\n      <div>\n        <h1>🛡️ Professional Vulnerability Scanner</h1>\n        <p class=\"subtitle\">Advanced static analysis with taint tracking, risk scoring, and SARIF export</p>\n      </div>\n      <button id=\"themeToggle\" class=\"btn-secondary\">🌙 Dark</button>\n    </div>\n\n    <div class=\"editor-section\">\n      <div>\n        <h3>Code Editor</h3>\n<textarea id=\"code\">import subprocess\n\nsubprocess.run(\"ls\", shell=True)\n</textarea>\n\n      </div>\n      <div>\n        <h3>Syntax Highlighting</h3>\n        <pre><code id=\"highlight\" class=\"language-python\"></code></pre>\n      </div>\n    </div>\n\n    <div class=\"controls\">\n      <button id=\"scan\" class=\"btn-primary\">🔍 Scan Code</button>\n      <button id=\"downloadJson\" class=\"btn-secondary\" disabled>📄 Download JSON</button>\n      <button id=\"downloadSarif\" class=\"btn-secondary\" disabled>📋 Download SARIF</button>\n      <span id=\"status\"></span>\n    </div>\n\n    <div id=\"riskDashboard\" style=\"display:none;\">\n      <div class=\"risk-dashboard\">\n        <div class=\"risk-card\">\n          <h3>Risk Score</h3>\n          <div class=\"value\" id=\"riskScore\">0%</div>\n          <div class=\"risk-level\" id=\"riskLevel\">N/A</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Total Issues</h3>\n          <div class=\"value\" id=\"totalIssues\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Critical</h3>\n          <div class=\"value\" id=\"criticalCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>High</h3>\n          <div class=\"value\" id=\"highCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Medium</h3>\n          <div class=\"value\" id=\"mediumCount\">0</div>\n        </div>\n        <div class=\"risk-card\">\n          <h3>Low</h3>\n          <div class=\"value\" id=\"lowCount\">0</div>\n        </div>\n      </div>\n    </div>\n\n    <div id=\"results\"></div>\n\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js\"></script>\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js\"></script>\n  <script src=\"/static/app.js\"></script>\n</body>\n</html>"
+        },
+        {
+          "id": "ev-fe8ab25c74c5",
+          "type": "log",
+          "timestamp": "2026-10-08T17:34:41.814Z",
+          "source": "route-discovery",
+          "content": "Selected route: {\"method\":\"GET\",\"url\":\"http://localhost:5000/\",\"source\":\"root\",\"parameters\":[]}"
+        }
+      ]
+    }
+  ],
+  "validations": [
+    {
+      "findingId": "runtime-sqli",
+      "source": "runtime",
+      "attackType": "sqli",
+      "result": "inconclusive",
+      "confidence": 50,
+      "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+      "attackId": "atk-4397119443a4"
+    },
+    {
+      "findingId": "runtime-xss",
+      "source": "runtime",
+      "attackType": "xss",
+      "result": "inconclusive",
+      "confidence": 50,
+      "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+      "attackId": "atk-bd90fa9f365c"
+    },
+    {
+      "findingId": "runtime-cmdi",
+      "source": "runtime",
+      "attackType": "cmdi",
+      "result": "inconclusive",
+      "confidence": 50,
+      "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+      "attackId": "atk-62457dc416de"
+    },
+    {
+      "findingId": "runtime-path-traversal",
+      "source": "runtime",
+      "attackType": "path_traversal",
+      "result": "inconclusive",
+      "confidence": 50,
+      "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+      "attackId": "atk-85bae216c661"
+    },
+    {
+      "findingId": "runtime-auth-bypass",
+      "source": "runtime",
+      "attackType": "auth_bypass",
+      "result": "confirmed",
+      "confidence": 95,
+      "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+      "attackId": "atk-59d2bfbef8bc"
+    },
+    {
+      "findingId": "runtime-code-injection",
+      "source": "runtime",
+      "attackType": "code_injection",
+      "result": "inconclusive",
+      "confidence": 50,
+      "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+      "attackId": "atk-c39c8868ecd2"
+    }
+  ],
+  "summary": {
+    "findings": 0,
+    "tested": 6,
+    "confirmed": 1,
+    "inconclusive": 5,
+    "notReproduced": 0,
+    "runtimeTests": 6,
+    "runtimeSuccessful": 1,
+    "runtimeInconclusive": 5,
+    "runtimeFailed": 0,
+    "durationMs": 532
+  }
+}

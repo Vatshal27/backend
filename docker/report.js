@@ -1,9 +1,13 @@
 'use strict';
+
 function createContainers(
   containers = {}
 ) {
   const result = [];
-  if (containers.target) {
+
+  if (
+    containers.target
+  ) {
     result.push({
       id:
         containers.target.id ||
@@ -14,7 +18,10 @@ function createContainers(
         'running',
     });
   }
-  if (containers.attacker) {
+
+  if (
+    containers.attacker
+  ) {
     result.push({
       id:
         containers.attacker.id ||
@@ -25,7 +32,10 @@ function createContainers(
         'completed',
     });
   }
-  if (containers.scanner) {
+
+  if (
+    containers.scanner
+  ) {
     result.push({
       id:
         containers.scanner.id ||
@@ -36,15 +46,19 @@ function createContainers(
         'completed',
     });
   }
+
   return result;
 }
+
 function splitFindings(
   findings = []
 ) {
   const staticFindings = [];
   const aiFindings = [];
+
   for (
-    const finding of findings
+    const finding of
+      findings
   ) {
     const source =
       String(
@@ -52,6 +66,7 @@ function splitFindings(
         finding?.origin ||
         ''
       ).toLowerCase();
+
     if (
       source === 'ai' ||
       source === 'llm'
@@ -65,78 +80,141 @@ function splitFindings(
       );
     }
   }
+
   return {
     staticFindings,
     aiFindings,
   };
 }
+
+function createExposures(
+  attacks = []
+) {
+  const exposures = [];
+
+  for (
+    const attack of attacks
+  ) {
+    const items =
+      Array.isArray(
+        attack?.sensitiveData
+      )
+        ? attack.sensitiveData
+        : [];
+
+    for (
+      const item of items
+    ) {
+      exposures.push({
+        id:
+          item.id ||
+          null,
+        attackId:
+          attack.id ||
+          null,
+        endpoint:
+          attack.request?.url ||
+          attack.target ||
+          null,
+        category:
+          item.category ||
+          'sensitive_data',
+        dataType:
+          item.dataType ||
+          'Sensitive Data',
+        maskedValue:
+          item.maskedValue ||
+          '[REDACTED]',
+        verdict:
+          'observed_exposure',
+      });
+    }
+  }
+
+  return exposures;
+}
+
 function createSummary(
   findings = [],
   validations = [],
   attacks = [],
+  exposures = [],
   startedAt,
   finishedAt
 ) {
   const safeFindings =
-    Array.isArray(findings)
+    Array.isArray(
+      findings
+    )
       ? findings
       : [];
+
   const safeValidations =
-    Array.isArray(validations)
+    Array.isArray(
+      validations
+    )
       ? validations
       : [];
+
   const safeAttacks =
-    Array.isArray(attacks)
+    Array.isArray(
+      attacks
+    )
       ? attacks
       : [];
+
+  const safeExposures =
+    Array.isArray(
+      exposures
+    )
+      ? exposures
+      : [];
+
   const confirmed =
     safeValidations.filter(
       item =>
         item?.result ===
         'confirmed'
     ).length;
+
   const inconclusive =
     safeValidations.filter(
       item =>
         item?.result ===
         'inconclusive'
     ).length;
+
   const notReproduced =
     safeValidations.filter(
       item =>
         item?.result ===
         'not_reproduced'
     ).length;
-  const runtimeSuccessful =
-    safeAttacks.filter(
-      item =>
-        item?.status ===
-        'success'
-    ).length;
-  const runtimeInconclusive =
-    safeAttacks.filter(
-      item =>
-        item?.status ===
-        'inconclusive'
-    ).length;
+
+  const observedExposures =
+    safeExposures.length;
+
   const runtimeFailed =
     safeAttacks.filter(
       item =>
         item?.status ===
         'failed'
     ).length;
+
   const startTime =
     startedAt
       ? new Date(
           startedAt
         ).getTime()
       : null;
+
   const finishTime =
     finishedAt
       ? new Date(
           finishedAt
         ).getTime()
       : null;
+
   const durationMs =
     Number.isFinite(
       startTime
@@ -147,22 +225,23 @@ function createSummary(
       ? finishTime -
         startTime
       : null;
+
   return {
     findings:
       safeFindings.length,
     tested:
-      safeValidations.length,
+      safeAttacks.length,
     confirmed,
+    observedExposures,
     inconclusive,
     notReproduced,
     runtimeTests:
       safeAttacks.length,
-    runtimeSuccessful,
-    runtimeInconclusive,
     runtimeFailed,
     durationMs,
   };
 }
+
 function buildReport({
   sandboxId = null,
   mode = null,
@@ -174,23 +253,36 @@ function buildReport({
   attacks = [],
   validations = [],
   findings = [],
+  project = null,
 } = {}) {
   const safeFindings =
-    Array.isArray(findings)
+    Array.isArray(
+      findings
+    )
       ? findings
       : [];
+
   const safeEvents =
-    Array.isArray(events)
+    Array.isArray(
+      events
+    )
       ? events
       : [];
+
   const safeAttacks =
-    Array.isArray(attacks)
+    Array.isArray(
+      attacks
+    )
       ? attacks
       : [];
+
   const safeValidations =
-    Array.isArray(validations)
+    Array.isArray(
+      validations
+    )
       ? validations
       : [];
+
   const {
     staticFindings,
     aiFindings,
@@ -198,11 +290,30 @@ function buildReport({
     splitFindings(
       safeFindings
     );
+
+  const exposures =
+    createExposures(
+      safeAttacks
+    );
+
+  const summary =
+    createSummary(
+      safeFindings,
+      safeValidations,
+      safeAttacks,
+      exposures,
+      startedAt,
+      finishedAt
+    );
+
   return {
+    schemaVersion:
+      '1.0',
     sandboxId,
     mode,
     startedAt,
     finishedAt,
+    project,
     target,
     containers:
       createContainers(
@@ -212,6 +323,7 @@ function buildReport({
       safeFindings,
     staticFindings,
     aiFindings,
+    exposures,
     runtime: {
       attacks:
         safeAttacks,
@@ -223,6 +335,8 @@ function buildReport({
             item?.result ===
             'confirmed'
         ),
+      observedExposures:
+        exposures,
       inconclusiveFindings:
         safeValidations.filter(
           item =>
@@ -242,16 +356,10 @@ function buildReport({
       safeAttacks,
     validations:
       safeValidations,
-    summary:
-      createSummary(
-        safeFindings,
-        safeValidations,
-        safeAttacks,
-        startedAt,
-        finishedAt
-      ),
+    summary,
   };
 }
+
 module.exports = {
   buildReport,
 };

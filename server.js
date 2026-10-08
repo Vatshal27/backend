@@ -3,6 +3,7 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const path = require('node:path');
 
 const {
     checkDocker,
@@ -23,6 +24,10 @@ const {
     analyzeFindings,
 } = require('./llm/analyzer');
 
+const {
+    cleanupExpiredReports,
+} = require('./docker/report-writer');
+
 const { MODEL } = require('./llm/ollama');
 
 const app = express();
@@ -31,6 +36,15 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
 const PORT = 3000;
+
+const REPORT_CLEANUP_INTERVAL_MS =
+    60 * 60 * 1000;
+
+const REPORTS_DIR =
+    path.join(
+        __dirname,
+        'reports'
+    );
 
 const OLLAMA_TAGS_URL =
     'http://localhost:11434/api/tags';
@@ -93,6 +107,28 @@ function getErrorMessage(error) {
     }
 
     return error.message || String(error);
+}
+
+async function cleanupLocalReports() {
+    try {
+        const result =
+            await cleanupExpiredReports(
+                REPORTS_DIR
+            );
+
+        if (
+            result.deleted > 0
+        ) {
+            console.log(
+                `[reports] Deleted ${result.deleted} expired report file(s).`
+            );
+        }
+    } catch (error) {
+        console.error(
+            '[reports] Cleanup failed:',
+            getErrorMessage(error)
+        );
+    }
 }
 
 app.get(
@@ -191,7 +227,6 @@ app.get(
     }
 );
 
-/* Analysis route is always available. */
 app.post(
     '/analyze-project',
     async (req, res) => {
@@ -245,69 +280,69 @@ app.post(
 );
 
 app.post(
-  '/sandbox/run',
-  async (req, res) => {
-    const findings =
-      req.body?.findings;
+    '/sandbox/run',
+    async (req, res) => {
+        const findings =
+            req.body?.findings;
 
-    if (
-      !Array.isArray(findings)
-    ) {
-      return res.status(400).json({
-        error:
-          'Findings must be an array.',
-      });
+        if (
+            !Array.isArray(findings)
+        ) {
+            return res.status(400).json({
+                error:
+                    'Findings must be an array.',
+            });
+        }
+
+        const mode =
+            req.body?.mode ===
+            'project-validation'
+                ? 'project-validation'
+                : 'simulation';
+
+        const targetUrl =
+            req.body?.targetUrl;
+
+        try {
+            let validatedTargetUrl;
+
+            if (
+                mode ===
+                'project-validation'
+            ) {
+                validatedTargetUrl =
+                    validateSandboxTarget(
+                        targetUrl
+                    );
+
+                console.log(
+                    `[sandbox] Project validation target: ${validatedTargetUrl}`
+                );
+            }
+
+            const report =
+                await runSandbox({
+                    findings,
+                    mode,
+                    targetUrl:
+                        validatedTargetUrl,
+                });
+
+            return res.json(
+                report
+            );
+        } catch (error) {
+            console.error(
+                '[sandbox] Error:',
+                getErrorMessage(error)
+            );
+
+            return res.status(400).json({
+                error:
+                    getErrorMessage(error),
+            });
+        }
     }
-
-    const mode =
-      req.body?.mode ===
-      'project-validation'
-        ? 'project-validation'
-        : 'simulation';
-
-    const targetUrl =
-      req.body?.targetUrl;
-
-    try {
-      let validatedTargetUrl;
-
-      if (
-        mode ===
-        'project-validation'
-      ) {
-        validatedTargetUrl =
-          validateSandboxTarget(
-            targetUrl
-          );
-
-        console.log(
-          `[sandbox] Project validation target: ${validatedTargetUrl}`
-        );
-      }
-
-      const report =
-        await runSandbox({
-          findings,
-          mode,
-          targetUrl:
-            validatedTargetUrl,
-        });
-
-      return res.json(
-        report
-      );
-    } catch (error) {
-      console.error(
-        '[sandbox] Error:',
-        getErrorMessage(error)
-      );
-
-      return res.status(400).json({
-        error:
-          getErrorMessage(error),
-      });
-    }
-  }
 );
 
 app.post(
@@ -375,6 +410,20 @@ app.listen(
                     ? 'enabled'
                     : 'disabled'
             }`
+        );
+
+        cleanupLocalReports();
+
+        const cleanupTimer =
+            setInterval(
+                cleanupLocalReports,
+                REPORT_CLEANUP_INTERVAL_MS
+            );
+
+        cleanupTimer.unref();
+
+        console.log(
+            '[reports] 24-hour local report retention enabled.'
         );
     }
 );

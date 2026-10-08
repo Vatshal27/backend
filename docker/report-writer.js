@@ -1,469 +1,1195 @@
 'use strict';
 
-const fs = require('node:fs/promises');
-const path = require('node:path');
+const fs =
+  require(
+    'node:fs/promises'
+  );
 
-function clean(value) {
-    return String(value ?? '')
-        .replace(/\r?\n/g, ' ')
-        .trim();
+const path =
+  require(
+    'node:path'
+  );
+
+const REPORT_RETENTION_MS =
+  24 *
+  60 *
+  60 *
+  1000;
+
+function clean(
+  value
+) {
+  return String(
+    value ?? ''
+  )
+    .replace(
+      /\r?\n/g,
+      ' '
+    )
+    .trim();
 }
 
-function renderMarkdownReport(report) {
+function formatLocalDateTime(
+  value
+) {
+  const date =
+    value
+      ? new Date(
+          value
+        )
+      : new Date();
 
-    const summary =
-        report.summary || {};
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return clean(
+      value
+    );
+  }
 
-    const target =
-        report.target || {};
+  return date.toLocaleString(
+    'en-GB',
+    {
+      year:
+        'numeric',
+      month:
+        'long',
+      day:
+        '2-digit',
+      hour:
+        '2-digit',
+      minute:
+        '2-digit',
+      second:
+        '2-digit',
+      hour12:
+        false,
+    }
+  );
+}
 
-    const findings =
-        Array.isArray(report.findings)
-            ? report.findings
-            : [];
+function filenameTimestamp(
+  value
+) {
+  const date =
+    value
+      ? new Date(
+          value
+        )
+      : new Date();
 
-    const attacks =
-        Array.isArray(report.attacks)
+  const pad =
+    number =>
+      String(
+        number
+      ).padStart(
+        2,
+        '0'
+      );
+
+  return (
+    date.getFullYear() +
+    '-' +
+    pad(
+      date.getMonth() +
+      1
+    ) +
+    '-' +
+    pad(
+      date.getDate()
+    ) +
+    '_' +
+    pad(
+      date.getHours()
+    ) +
+    '-' +
+    pad(
+      date.getMinutes()
+    ) +
+    '-' +
+    pad(
+      date.getSeconds()
+    )
+  );
+}
+
+function safeName(
+  value
+) {
+  return String(
+    value || ''
+  )
+    .trim()
+    .replace(
+      /[^a-z0-9_-]+/gi,
+      '_'
+    )
+    .replace(
+      /^_+|_+$/g,
+      ''
+    );
+}
+
+function getReportTimes(
+  report
+) {
+  const generatedAt =
+    report.finishedAt ||
+    new Date().toISOString();
+
+  const generatedDate =
+    new Date(
+      generatedAt
+    );
+
+  const expiresAt =
+    new Date(
+      generatedDate.getTime() +
+      REPORT_RETENTION_MS
+    ).toISOString();
+
+  return {
+    generatedAt:
+      generatedDate.toISOString(),
+    expiresAt,
+  };
+}
+
+function createMachineAttack(
+  attack
+) {
+  return {
+    id:
+      attack.id ||
+      null,
+    findingId:
+      attack.findingId ||
+      null,
+    tool:
+      attack.tool ||
+      null,
+    attackType:
+      attack.attackType ||
+      null,
+    target:
+      attack.target ||
+      null,
+    status:
+      attack.status ||
+      null,
+    payload:
+      attack.payload ||
+      null,
+    request:
+      attack.request ||
+      null,
+    response:
+      attack.response
+        ? {
+            statusCode:
+              attack.response.statusCode ??
+              null,
+            contentType:
+              attack.response.contentType ||
+              null,
+            bodyLength:
+              attack.response.bodyLength ??
+              0,
+            bodyPreview:
+              attack.response.bodyPreview ||
+              '',
+            evidenceSnippet:
+              attack.response.evidenceSnippet ||
+              null,
+          }
+        : null,
+    sensitiveData:
+      Array.isArray(
+        attack.sensitiveData
+      )
+        ? attack.sensitiveData
+        : [],
+    startedAt:
+      attack.startedAt ||
+      null,
+    finishedAt:
+      attack.finishedAt ||
+      null,
+    evidence:
+      Array.isArray(
+        attack.evidence
+      )
+        ? attack.evidence
+        : [],
+  };
+}
+
+function createMachineReport(
+  report
+) {
+  const {
+    generatedAt,
+    expiresAt,
+  } =
+    getReportTimes(
+      report
+    );
+
+  const attacks =
+    Array.isArray(
+      report.runtime?.attacks
+    )
+      ? report.runtime.attacks
+      : (
+          Array.isArray(
+            report.attacks
+          )
             ? report.attacks
-            : [];
+            : []
+        );
 
-    const validations =
-        Array.isArray(report.validations)
+  const validations =
+    Array.isArray(
+      report.runtime?.validations
+    )
+      ? report.runtime.validations
+      : (
+          Array.isArray(
+            report.validations
+          )
             ? report.validations
-            : [];
+            : []
+        );
 
-    const events =
-        Array.isArray(report.events)
-            ? report.events
-            : [];
+  return {
+    schemaVersion:
+      report.schemaVersion ||
+      '1.0',
+    reportType:
+      'SentinelAI Security Data',
+    reportId:
+      report.sandboxId ||
+      null,
+    generatedAt,
+    expiresAt,
+    retentionHours:
+      24,
+    mode:
+      report.mode ||
+      null,
+    project:
+      report.project ||
+      null,
+    target:
+      report.target ||
+      null,
+    summary:
+      report.summary ||
+      {},
+    findings: {
+      all:
+        Array.isArray(
+          report.findings
+        )
+          ? report.findings
+          : [],
+      static:
+        Array.isArray(
+          report.staticFindings
+        )
+          ? report.staticFindings
+          : [],
+      ai:
+        Array.isArray(
+          report.aiFindings
+        )
+          ? report.aiFindings
+          : [],
+    },
+    runtime: {
+      attacks:
+        attacks.map(
+          createMachineAttack
+        ),
+      validations,
+    },
+    exposures:
+      Array.isArray(
+        report.exposures
+      )
+        ? report.exposures
+        : [],
+    execution: {
+      events:
+        Array.isArray(
+          report.events
+        )
+          ? report.events
+          : [],
+    },
+  };
+}
 
-    const lines = [];
+function renderSummaryTable(
+  lines,
+  summary
+) {
+  lines.push(
+    '| Result | Count |'
+  );
 
+  lines.push(
+    '|---|---:|'
+  );
+
+  lines.push(
+    `| Confirmed vulnerabilities | ${summary.confirmed ?? 0} |`
+  );
+
+  lines.push(
+    `| Observed exposures | ${summary.observedExposures ?? 0} |`
+  );
+
+  lines.push(
+    `| Inconclusive | ${summary.inconclusive ?? 0} |`
+  );
+
+  lines.push(
+    `| Not reproduced | ${summary.notReproduced ?? 0} |`
+  );
+
+  lines.push(
+    `| Runtime tests | ${summary.runtimeTests ?? 0} |`
+  );
+
+  lines.push(
+    `| Failed tests | ${summary.runtimeFailed ?? 0} |`
+  );
+
+  lines.push(
+    `| Duration | ${summary.durationMs ?? 0} ms |`
+  );
+}
+
+function renderSourceFindings(
+  lines,
+  title,
+  findings
+) {
+  lines.push(
+    `## ${title}`
+  );
+
+  lines.push('');
+
+  if (
+    !findings.length
+  ) {
     lines.push(
-        '# SentinelAI Runtime Validation Report'
+      `No ${title.toLowerCase()} were reported.`
     );
 
     lines.push('');
 
-    lines.push(
-        `- **Sandbox ID:** ${clean(report.sandboxId)}`
-    );
+    return;
+  }
 
-    lines.push(
-        `- **Mode:** ${clean(report.mode)}`
-    );
+  findings.forEach(
+    (
+      finding,
+      index
+    ) => {
+      lines.push(
+        `### ${index + 1}. ${clean(
+          finding.type ||
+          finding.title ||
+          'Security Finding'
+        )}`
+      );
 
-    lines.push(
-        `- **Target:** ${clean(target.url)}`
-    );
+      lines.push('');
 
-    lines.push(
-        `- **Runtime:** ${clean(target.name)}`
-    );
+      if (
+        finding.id
+      ) {
+        lines.push(
+          `- **ID:** ${clean(
+            finding.id
+          )}`
+        );
+      }
 
-    lines.push(
-        `- **Started:** ${clean(report.startedAt)}`
-    );
+      if (
+        finding.severity
+      ) {
+        lines.push(
+          `- **Severity:** ${clean(
+            finding.severity
+          )}`
+        );
+      }
 
-    lines.push(
-        `- **Finished:** ${clean(report.finishedAt)}`
-    );
-
-    lines.push('');
-
-    lines.push(
-        '## Validation Summary'
-    );
-
-    lines.push('');
-
-    lines.push('| Metric | Value |');
-    lines.push('|---|---:|');
-
-    lines.push(
-        `| Findings | ${summary.findings ?? 0} |`
-    );
-
-    lines.push(
-        `| Tested | ${summary.tested ?? 0} |`
-    );
-
-    lines.push(
-        `| Confirmed | ${summary.confirmed ?? 0} |`
-    );
-
-    lines.push(
-        `| Inconclusive | ${summary.inconclusive ?? 0} |`
-    );
-
-    lines.push(
-        `| Not Reproduced | ${summary.notReproduced ?? 0} |`
-    );
-
-    lines.push(
-        `| Runtime Tests | ${summary.runtimeTests ?? 0} |`
-    );
-
-    lines.push(
-        `| Successful Runtime Tests | ${summary.runtimeSuccessful ?? 0} |`
-    );
-
-    lines.push(
-        `| Failed Runtime Tests | ${summary.runtimeFailed ?? 0} |`
-    );
-
-    lines.push(
-        `| Duration (ms) | ${summary.durationMs ?? 0} |`
-    );
-
-    lines.push('');
-
-    lines.push(
-        '## Findings'
-    );
-
-    lines.push('');
-
-    if (!findings.length) {
+      if (
+        finding.file
+      ) {
+        const location =
+          finding.line
+            ? `${finding.file}:${finding.line}`
+            : finding.file;
 
         lines.push(
-            'No findings were supplied.'
+          `- **Location:** \`${clean(
+            location
+          )}\``
         );
+      }
 
-    } else {
-
-        findings.forEach(
-            (finding, index) => {
-
-                lines.push(
-                    `### ${index + 1}. ${clean(
-                        finding.type ||
-                        'Security Finding'
-                    )}`
-                );
-
-                lines.push('');
-
-                lines.push(
-                    `- **ID:** ${clean(finding.id)}`
-                );
-
-                lines.push(
-                    `- **Severity:** ${clean(
-                        finding.severity
-                    )}`
-                );
-
-                lines.push(
-                    `- **File:** ${clean(
-                        finding.file
-                    )}`
-                );
-
-                if (finding.line) {
-
-                    lines.push(
-                        `- **Line:** ${clean(
-                            finding.line
-                        )}`
-                    );
-
-                }
-
-                if (finding.explanation) {
-
-                    lines.push(
-                        `- **Explanation:** ${clean(
-                            finding.explanation
-                        )}`
-                    );
-
-                }
-
-                if (finding.fix) {
-
-                    lines.push(
-                        `- **Fix:** ${clean(
-                            finding.fix
-                        )}`
-                    );
-
-                }
-
-                lines.push('');
-            }
-        );
-    }
-
-    lines.push(
-        '## Runtime Attack Evidence'
-    );
-
-    lines.push('');
-
-    if (!attacks.length) {
+      if (
+        finding.explanation
+      ) {
+        lines.push('');
 
         lines.push(
-            'No runtime attacks were executed.'
+          '**Explanation**'
         );
 
-    } else {
-
-        attacks.forEach(
-            (attack, index) => {
-
-                lines.push(
-                    `### Attack ${index + 1}: ${clean(
-                        attack.tool ||
-                        'runtime-generic'
-                    )}`
-                );
-
-                lines.push('');
-
-                lines.push(
-                    `- **Finding:** ${clean(
-                        attack.findingId
-                    )}`
-                );
-
-                lines.push(
-                    `- **Attack Type:** ${clean(
-                        attack.attackType
-                    )}`
-                );
-
-                lines.push(
-                    `- **Status:** ${clean(
-                        attack.status
-                    )}`
-                );
-
-                lines.push(
-                    `- **Target:** ${clean(
-                        attack.target
-                    )}`
-                );
-
-                lines.push(
-                    `- **Payload:** ${clean(
-                        attack.payload
-                    )}`
-                );
-
-                if (attack.request) {
-
-                    lines.push(
-                        `- **Request:** ${clean(
-                            JSON.stringify(
-                                attack.request
-                            )
-                        )}`
-                    );
-
-                }
-
-                if (attack.response) {
-
-                    lines.push(
-                        `- **Response:** ${clean(
-                            JSON.stringify(
-                                attack.response
-                            )
-                        )}`
-                    );
-
-                }
-
-                if (
-                    Array.isArray(
-                        attack.evidence
-                    )
-                ) {
-
-                    lines.push('');
-
-                    lines.push(
-                        '**Evidence**'
-                    );
-
-                    lines.push('');
-
-                    attack.evidence.forEach(
-                        evidence => {
-
-                            lines.push(
-                                `- **${clean(
-                                    evidence.type ||
-                                    'evidence'
-                                )}:** ${clean(
-                                    evidence.content
-                                )}`
-                            );
-
-                        }
-                    );
-
-                }
-
-                lines.push('');
-            }
-        );
-    }
-
-    lines.push(
-        '## Validation Verdicts'
-    );
-
-    lines.push('');
-
-    if (!validations.length) {
+        lines.push('');
 
         lines.push(
-            'No validation verdicts were generated.'
+          clean(
+            finding.explanation
+          )
+        );
+      }
+
+      if (
+        finding.fix
+      ) {
+        lines.push('');
+
+        lines.push(
+          '**Recommended Fix**'
         );
 
-    } else {
+        lines.push('');
 
-        validations.forEach(
-            (validation, index) => {
-
-                lines.push(
-                    `${index + 1}. **${clean(
-                        validation.result
-                    )}** — ${clean(
-                        validation.findingId
-                    )} — Confidence: ${clean(
-                        validation.confidence
-                    )}% — ${clean(
-                        validation.rationale
-                    )}`
-                );
-
-            }
+        lines.push(
+          clean(
+            finding.fix
+          )
         );
+      }
+
+      lines.push('');
     }
+  );
+}
 
-    lines.push('');
+function renderExposures(
+  lines,
+  exposures
+) {
+  lines.push(
+    '## Sensitive Data Exposure'
+  );
 
+  lines.push('');
+
+  if (
+    !exposures.length
+  ) {
     lines.push(
-        '## Validation Execution'
+      'No sensitive-data exposure was detected in the runtime responses checked during this scan.'
     );
 
     lines.push('');
 
+    return;
+  }
+
+  exposures.forEach(
+    (
+      exposure,
+      index
+    ) => {
+      lines.push(
+        `### ${index + 1}. ${clean(
+          exposure.dataType ||
+          'Sensitive Data'
+        )}`
+      );
+
+      lines.push('');
+
+      lines.push(
+        '- **Verdict:** Observed Exposure'
+      );
+
+      lines.push(
+        `- **Category:** ${clean(
+          exposure.category
+        )}`
+      );
+
+      if (
+        exposure.endpoint
+      ) {
+        lines.push(
+          `- **Endpoint:** \`${clean(
+            exposure.endpoint
+          )}\``
+        );
+      }
+
+      lines.push(
+        `- **Redacted Evidence:** \`${clean(
+          exposure.maskedValue ||
+          '[REDACTED]'
+        )}\``
+      );
+
+      lines.push('');
+
+      lines.push(
+        'The complete sensitive value is intentionally not stored in this report.'
+      );
+
+      lines.push('');
+    }
+  );
+}
+
+function renderRuntimeValidation(
+  lines,
+  attacks,
+  validations
+) {
+  lines.push(
+    '## Runtime Validation'
+  );
+
+  lines.push('');
+
+  if (
+    !attacks.length
+  ) {
+    lines.push(
+      'No runtime security probes were executed.'
+    );
+
+    lines.push('');
+
+    return;
+  }
+
+  lines.push(
+    '| Check | Verdict | Target | HTTP |'
+  );
+
+  lines.push(
+    '|---|---|---|---:|'
+  );
+
+  attacks.forEach(
+    attack => {
+      const validation =
+        validations.find(
+          item =>
+            item.attackId ===
+            attack.id &&
+            item.result !==
+              'observed_exposure'
+        );
+
+      lines.push(
+        `| ${clean(
+          attack.attackType
+        )} | ${clean(
+          validation?.result ||
+          attack.status ||
+          'unknown'
+        )} | ${clean(
+          attack.target
+        )} | ${clean(
+          attack.response
+            ?.statusCode ??
+          ''
+        )} |`
+      );
+    }
+  );
+
+  lines.push('');
+
+  attacks.forEach(
+    (
+      attack,
+      index
+    ) => {
+      const validation =
+        validations.find(
+          item =>
+            item.attackId ===
+            attack.id &&
+            item.result !==
+              'observed_exposure'
+        );
+
+      lines.push(
+        `### Probe ${index + 1}: ${clean(
+          attack.attackType ||
+          'Runtime Check'
+        )}`
+      );
+
+      lines.push('');
+
+      lines.push(
+        `- **Verdict:** ${clean(
+          validation?.result ||
+          attack.status ||
+          'unknown'
+        )}`
+      );
+
+      lines.push(
+        `- **Target:** \`${clean(
+          attack.target
+        )}\``
+      );
+
+      if (
+        attack.request
+      ) {
+        lines.push(
+          `- **Request:** \`${clean(
+            attack.request.method
+          )} ${clean(
+            attack.request.url
+          )}\``
+        );
+      }
+
+      if (
+        attack.response
+      ) {
+        lines.push(
+          `- **HTTP Status:** ${clean(
+            attack.response.statusCode
+          )}`
+        );
+
+        lines.push(
+          `- **Content Type:** ${clean(
+            attack.response.contentType
+          )}`
+        );
+
+        lines.push(
+          `- **Response Size:** ${clean(
+            attack.response.bodyLength
+          )} bytes`
+        );
+      }
+
+      if (
+        validation?.rationale
+      ) {
+        lines.push('');
+
+        lines.push(
+          '**Assessment**'
+        );
+
+        lines.push('');
+
+        lines.push(
+          clean(
+            validation.rationale
+          )
+        );
+      }
+
+      if (
+        attack.response
+          ?.evidenceSnippet
+      ) {
+        lines.push('');
+
+        lines.push(
+          '**Security Evidence**'
+        );
+
+        lines.push('');
+
+        lines.push(
+          `\`${clean(
+            attack.response
+              .evidenceSnippet
+          )}\``
+        );
+      }
+
+      if (
+        attack.response
+          ?.bodyPreview
+      ) {
+        lines.push('');
+
+        lines.push(
+          '<details>'
+        );
+
+        lines.push(
+          '<summary>Redacted response preview</summary>'
+        );
+
+        lines.push('');
+
+        lines.push(
+          '```text'
+        );
+
+        lines.push(
+          String(
+            attack.response
+              .bodyPreview
+          )
+        );
+
+        lines.push(
+          '```'
+        );
+
+        lines.push('');
+
+        lines.push(
+          '</details>'
+        );
+      }
+
+      lines.push('');
+    }
+  );
+}
+
+function renderMarkdownReport(
+  report
+) {
+  const {
+    generatedAt,
+    expiresAt,
+  } =
+    getReportTimes(
+      report
+    );
+
+  const summary =
+    report.summary ||
+    {};
+
+  const target =
+    report.target ||
+    {};
+
+  const staticFindings =
+    Array.isArray(
+      report.staticFindings
+    )
+      ? report.staticFindings
+      : [];
+
+  const aiFindings =
+    Array.isArray(
+      report.aiFindings
+    )
+      ? report.aiFindings
+      : [];
+
+  const attacks =
+    Array.isArray(
+      report.runtime?.attacks
+    )
+      ? report.runtime.attacks
+      : (
+          Array.isArray(
+            report.attacks
+          )
+            ? report.attacks
+            : []
+        );
+
+  const validations =
+    Array.isArray(
+      report.runtime?.validations
+    )
+      ? report.runtime.validations
+      : (
+          Array.isArray(
+            report.validations
+          )
+            ? report.validations
+            : []
+        );
+
+  const exposures =
+    Array.isArray(
+      report.exposures
+    )
+      ? report.exposures
+      : [];
+
+  const lines = [];
+
+  lines.push(
+    '# SentinelAI Security Report'
+  );
+
+  lines.push('');
+
+  lines.push(
+    `**Generated:** ${formatLocalDateTime(
+      generatedAt
+    )}`
+  );
+
+  lines.push(
+    `**Expires:** ${formatLocalDateTime(
+      expiresAt
+    )}`
+  );
+
+  if (
+    report.project?.name
+  ) {
+    lines.push(
+      `**Project:** ${clean(
+        report.project.name
+      )}`
+    );
+  }
+
+  lines.push(
+    `**Target:** ${clean(
+      target.url ||
+      ''
+    )}`
+  );
+
+  lines.push(
+    `**Mode:** ${clean(
+      report.mode ||
+      ''
+    )}`
+  );
+
+  lines.push('');
+
+  lines.push(
+    '> Local SentinelAI report files are retained for 24 hours and are then automatically removed.'
+  );
+
+  lines.push('');
+
+  lines.push(
+    '---'
+  );
+
+  lines.push('');
+
+  lines.push(
+    '## Executive Summary'
+  );
+
+  lines.push('');
+
+  const securityRelevant =
+    (
+      summary.confirmed ||
+      0
+    ) +
+    (
+      summary.observedExposures ||
+      0
+    );
+
+  if (
+    securityRelevant > 0
+  ) {
+    lines.push(
+      `SentinelAI identified ${securityRelevant} security-relevant result(s) requiring review.`
+    );
+  } else {
+    lines.push(
+      'SentinelAI did not confirm a vulnerability or sensitive-data exposure in the checks performed.'
+    );
+  }
+
+  lines.push('');
+
+  renderSummaryTable(
+    lines,
+    summary
+  );
+
+  lines.push('');
+
+  renderSourceFindings(
+    lines,
+    'Static Analysis Findings',
+    staticFindings
+  );
+
+  renderSourceFindings(
+    lines,
+    'AI Analysis Findings',
+    aiFindings
+  );
+
+  renderExposures(
+    lines,
+    exposures
+  );
+
+  renderRuntimeValidation(
+    lines,
+    attacks,
+    validations
+  );
+
+  lines.push(
+    '## Validation Execution'
+  );
+
+  lines.push('');
+
+  const events =
+    Array.isArray(
+      report.events
+    )
+      ? report.events
+      : [];
+
+  if (
+    !events.length
+  ) {
+    lines.push(
+      'No execution events were recorded.'
+    );
+  } else {
     events.forEach(
-        event => {
+      event => {
+        lines.push(
+          `- **Step ${clean(
+            event.step
+          )}:** ${clean(
+            event.description
+          )} — ${clean(
+            event.status
+          )}`
+        );
+      }
+    );
+  }
 
-            lines.push(
-                `- **Step ${clean(
-                    event.step
-                )}:** ${clean(
-                    event.description
-                )} — ${clean(
-                    event.status
-                )}`
-            );
+  lines.push('');
 
+  lines.push(
+    '---'
+  );
+
+  lines.push('');
+
+  lines.push(
+    '*Generated automatically by SentinelAI.*'
+  );
+
+  lines.push('');
+
+  return lines.join(
+    '\n'
+  );
+}
+
+async function cleanupExpiredReports(
+  reportsDir
+) {
+  let entries;
+
+  try {
+    entries =
+      await fs.readdir(
+        reportsDir,
+        {
+          withFileTypes:
+            true,
         }
-    );
+      );
+  } catch {
+    return {
+      deleted:
+        0,
+    };
+  }
 
-    lines.push('');
+  const now =
+    Date.now();
 
-    lines.push(
-        '---'
-    );
+  let deleted =
+    0;
 
-    lines.push('');
+  for (
+    const entry of entries
+  ) {
+    if (
+      !entry.isFile()
+    ) {
+      continue;
+    }
 
-    lines.push(
-        '*Generated automatically by SentinelAI.*'
-    );
+    if (
+      !entry.name.endsWith(
+        '.md'
+      ) &&
+      !entry.name.endsWith(
+        '.json'
+      )
+    ) {
+      continue;
+    }
 
-    lines.push('');
+    const filePath =
+      path.join(
+        reportsDir,
+        entry.name
+      );
 
-    return lines.join('\n');
+    try {
+      const stats =
+        await fs.stat(
+          filePath
+        );
+
+      if (
+        now -
+        stats.mtimeMs >=
+        REPORT_RETENTION_MS
+      ) {
+        await fs.unlink(
+          filePath
+        );
+
+        deleted +=
+          1;
+      }
+    } catch {
+      // File may have already been removed.
+    }
+  }
+
+  return {
+    deleted,
+  };
 }
 
 async function writeReportFiles(
-    report
+  report
 ) {
-
-    const reportsDir =
-        path.join(
-            __dirname,
-            '..',
-            'reports'
-        );
-
-    await fs.mkdir(
-        reportsDir,
-        {
-            recursive: true,
-        }
+  const reportsDir =
+    path.join(
+      __dirname,
+      '..',
+      'reports'
     );
 
-    const safeMode =
-        String(
-            report.mode ||
-            'sandbox'
-        ).replace(
-            /[^a-z0-9_-]/gi,
-            '-'
-        );
+  await fs.mkdir(
+    reportsDir,
+    {
+      recursive:
+        true,
+    }
+  );
 
-    const safeId =
-        String(
-            report.sandboxId ||
-            Date.now()
-        ).replace(
-            /[^a-z0-9_-]/gi,
-            '-'
-        );
+  await cleanupExpiredReports(
+    reportsDir
+  );
 
-    const baseName =
-        `sentinelai-${safeMode}-${safeId}`;
-
-    const markdownPath =
-        path.join(
-            reportsDir,
-            `${baseName}.md`
-        );
-
-    const jsonPath =
-        path.join(
-            reportsDir,
-            `${baseName}.json`
-        );
-
-    await fs.writeFile(
-        markdownPath,
-        renderMarkdownReport(
-            report
-        ),
-        'utf8'
+  const {
+    generatedAt,
+  } =
+    getReportTimes(
+      report
     );
 
-    await fs.writeFile(
-        jsonPath,
-        JSON.stringify(
-            report,
-            null,
-            2
-        ),
-        'utf8'
+  const timestamp =
+    filenameTimestamp(
+      generatedAt
     );
 
-    return {
-        markdown:
-            markdownPath,
+  const projectName =
+    safeName(
+      report.project?.name
+    );
 
-        json:
-            jsonPath,
-    };
+  const prefix =
+    projectName
+      ? `${timestamp}_SentinelAI_${projectName}`
+      : `${timestamp}_SentinelAI`;
+
+  const markdownPath =
+    path.join(
+      reportsDir,
+      `${prefix}_Security_Report.md`
+    );
+
+  const jsonPath =
+    path.join(
+      reportsDir,
+      `${prefix}_Security_Data.json`
+    );
+
+  const machineReport =
+    createMachineReport(
+      report
+    );
+
+  await Promise.all([
+    fs.writeFile(
+      markdownPath,
+      renderMarkdownReport(
+        report
+      ),
+      'utf8'
+    ),
+
+    fs.writeFile(
+      jsonPath,
+      JSON.stringify(
+        machineReport,
+        null,
+        2
+      ),
+      'utf8'
+    ),
+  ]);
+
+  return {
+    markdown:
+      markdownPath,
+    json:
+      jsonPath,
+    generatedAt:
+      machineReport.generatedAt,
+    expiresAt:
+      machineReport.expiresAt,
+  };
 }
 
 module.exports = {
-    renderMarkdownReport,
-    writeReportFiles,
+  renderMarkdownReport,
+  createMachineReport,
+  writeReportFiles,
+  cleanupExpiredReports,
 };
