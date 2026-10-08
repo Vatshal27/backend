@@ -308,7 +308,7 @@ function buildReport({
 
   return {
     schemaVersion:
-      '1.0',
+      '1.1',
     sandboxId,
     mode,
     startedAt,
@@ -362,4 +362,7 @@ function buildReport({
 
 module.exports = {
   buildReport,
+  createSummary,
+  createExposures,
+  splitFindings,
 };

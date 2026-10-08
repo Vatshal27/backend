@@ -29,8 +29,10 @@ const {
   validateAttacks,
 } = require('./validator');
 const {
-  buildReport,
-} = require('./report');
+  compileReports,
+} = require(
+  './reporting/compiler'
+);
 const {
   writeReportFiles,
 } = require('./report-writer');
@@ -41,7 +43,8 @@ const {
 
 const activeSandboxes =
   new Map();
-
+let latestSimulationReport =
+  null;
 function createId(
   prefix = ''
 ) {
@@ -141,6 +144,74 @@ function createEvent(
       ? { findingId }
       : {}),
   });
+}
+
+function buildReport({
+  sandboxId,
+  mode,
+  startedAt,
+  finishedAt,
+  target,
+  containers,
+  events,
+  attacks,
+  validations,
+  findings,
+}) {
+  return {
+    sandboxId,
+    mode,
+    startedAt,
+    finishedAt,
+    target:
+      target ||
+      null,
+    containers:
+      containers || {
+        target:
+          null,
+        attacker:
+          null,
+        scanner:
+          null,
+      },
+    events:
+      Array.isArray(
+        events
+      )
+        ? events
+        : [],
+    attacks:
+      Array.isArray(
+        attacks
+      )
+        ? attacks
+        : [],
+    validations:
+      Array.isArray(
+        validations
+      )
+        ? validations
+        : [],
+    findings:
+      Array.isArray(
+        findings
+      )
+        ? findings
+        : [],
+    project:
+      null,
+    reportFiles:
+      null,
+    compilation: {
+      status:
+        'pending',
+      safeSimulationIncluded:
+        false,
+      projectValidationIncluded:
+        false,
+    },
+  };
 }
 
 function restoreProjectTargetUrls(
@@ -678,15 +749,58 @@ async function runSandbox(
         findings,
       });
 
-    const reportFiles =
-      await writeReportFiles(
-        report
-      );
+if (
+  mode ===
+  'simulation'
+) {
+  latestSimulationReport =
+    report;
 
-    report.reportFiles =
-      reportFiles;
+  report.reportFiles =
+    null;
 
-    return report;
+  report.compilation = {
+    status:
+      'waiting_for_project_validation',
+    message:
+      'Safe Simulation result retained for the next compiled SentinelAI Security Report.',
+  };
+
+  return report;
+}
+
+const compiledReport =
+  compileReports({
+    simulationReport:
+      latestSimulationReport,
+    projectReport:
+      report,
+    findings,
+    project:
+      report.project ||
+      null,
+  });
+
+const reportFiles =
+  await writeReportFiles(
+    compiledReport
+  );
+
+report.reportFiles =
+  reportFiles;
+
+report.compilation = {
+  status:
+    'compiled',
+  safeSimulationIncluded:
+    Boolean(
+      latestSimulationReport
+    ),
+  projectValidationIncluded:
+    true,
+};
+
+return report;
   } catch (error) {
     createEvent(
       events,
