@@ -1,8 +1,9 @@
   'use strict';
   const crypto = require('crypto');
-  const {
-    docker,
-  } = require('./client');
+const {
+  docker,
+  getDockerTargetUrl,
+} = require('./client');
   const {
     ATTACK_IMAGE,
     SANDBOX_LIMITS,
@@ -1233,20 +1234,46 @@
     script,
     projectValidation = false,
   }) {
-    const hostConfig = {
-      AutoRemove:
-        false,
-      Memory:
-        SANDBOX_LIMITS.memory,
-      NanoCpus:
-        SANDBOX_LIMITS.nanoCpus,
-      PidsLimit:
-        SANDBOX_LIMITS.pidsLimit,
-      NetworkMode:
-        projectValidation
-          ? 'host'
-          : networkName,
-    };
+const hostConfig = {
+  AutoRemove:
+    false,
+
+  Memory:
+    SANDBOX_LIMITS.memory,
+
+  NanoCpus:
+    SANDBOX_LIMITS.nanoCpus,
+
+  PidsLimit:
+    SANDBOX_LIMITS.pidsLimit,
+
+  NetworkMode:
+    networkName,
+
+  ...(projectValidation
+    ? {
+        ExtraHosts: [
+          'host.docker.internal:host-gateway',
+        ],
+      }
+    : {}),
+
+  CapDrop: [
+    'ALL',
+  ],
+
+  SecurityOpt: [
+    'no-new-privileges:true',
+  ],
+
+  ReadonlyRootfs:
+    true,
+
+  Tmpfs: {
+    '/tmp':
+      'rw,noexec,nosuid,size=16m',
+  },
+};
     return docker.createContainer({
       Image:
         ATTACK_IMAGE,
@@ -1274,8 +1301,12 @@
         'Target URL is required for runtime validation.'
       );
     }
-    const resolvedTarget =
-      targetUrl;
+      const resolvedTarget =
+        projectValidation
+          ? getDockerTargetUrl(
+              targetUrl
+            )
+          : targetUrl;
     const script =
       buildAttackerScript(
         findings,

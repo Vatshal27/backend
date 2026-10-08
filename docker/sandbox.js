@@ -39,6 +39,10 @@ const {
 } = require('./report');
 
 const {
+  writeReportFiles,
+} = require('./report-writer');
+
+const {
   SANDBOX_TIMEOUT,
   LOCAL_HOSTS,
 } = require('./config');
@@ -205,7 +209,16 @@ async function runSandbox(
           targetUrl
         )
       : null;
+const sandboxState = {
+  sandboxId,
+  network: null,
+  containers,
+};
 
+activeSandboxes.set(
+  sandboxId,
+  sandboxState
+);
   try {
     createEvent(
       events,
@@ -258,16 +271,19 @@ async function runSandbox(
         }
       );
 
-    if (
-      !network ||
-      !network.id ||
-      !network.name ||
-      !network.dockerNetwork
-    ) {
-      throw new Error(
-        'Docker network was not created correctly.'
-      );
-    }
+if (
+  !network ||
+  !network.id ||
+  !network.name ||
+  !network.dockerNetwork
+) {
+  throw new Error(
+    'Docker network was not created correctly.'
+  );
+}
+
+sandboxState.network =
+  network.dockerNetwork;
 
     console.log(
       '[sandbox] Docker network:',
@@ -492,29 +508,39 @@ async function runSandbox(
         );
     }
 
-    const report =
-      buildReport({
-        sandboxId,
+const report =
+  buildReport({
+    sandboxId,
 
-        mode,
+    mode,
 
-        startedAt,
+    startedAt,
 
-        finishedAt,
+    finishedAt,
 
-        target:
-          reportTarget,
+    target:
+      reportTarget,
 
-        containers,
+    containers,
 
-        events,
+    events,
 
-        attacks,
+    attacks,
 
-        validations,
-      });
+    validations,
 
-    return report;
+    findings,
+  });
+
+const reportFiles =
+  await writeReportFiles(
+    report
+  );
+
+report.reportFiles =
+  reportFiles;
+
+return report;
   } catch (error) {
     createEvent(
       events,
@@ -560,42 +586,58 @@ async function runSandbox(
 async function stopSandbox(
   sandboxId
 ) {
-  const sandbox =
-    activeSandboxes.get(
-      sandboxId
-    );
+  const states =
+    sandboxId
+      ? [
+          activeSandboxes.get(
+            sandboxId
+          ),
+        ].filter(Boolean)
+      : Array.from(
+          activeSandboxes.values()
+        );
 
-  if (!sandbox) {
+  if (!states.length) {
     return {
-      stopped:
-        false,
-
-      reason:
-        'Sandbox is no longer active.',
+      stopped: 0,
     };
   }
 
-  await removeContainer(
-    sandbox.attacker
+  await Promise.allSettled(
+    states.map(
+      async state => {
+        await removeContainer(
+          state.containers?.attacker
+        );
+
+        await removeContainer(
+          state.containers?.target
+        );
+
+        await removeNetwork(
+          state.network
+        );
+      }
+    )
   );
 
-  await removeContainer(
-    sandbox.target
-  );
-
-  await removeNetwork(
-    sandbox.network
-  );
-
-  activeSandboxes.delete(
-    sandboxId
-  );
+  for (
+    const state of states
+  ) {
+    activeSandboxes.delete(
+      state.sandboxId
+    );
+  }
 
   return {
     stopped:
-      true,
+      states.length,
 
-    sandboxId,
+    ...(sandboxId
+      ? {
+          sandboxId,
+        }
+      : {}),
   };
 }
 

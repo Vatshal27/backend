@@ -35,6 +35,51 @@ const PORT = 3000;
 const OLLAMA_TAGS_URL =
     'http://localhost:11434/api/tags';
 
+function validateSandboxTarget(targetUrl) {
+    if (!targetUrl) {
+        throw new Error(
+            'Project validation requires a targetUrl.'
+        );
+    }
+
+    let parsed;
+
+    try {
+        parsed = new URL(targetUrl);
+    } catch {
+        throw new Error(
+            'Invalid targetUrl.'
+        );
+    }
+
+    if (
+        parsed.protocol !== 'http:' &&
+        parsed.protocol !== 'https:'
+    ) {
+        throw new Error(
+            'Project validation only supports HTTP or HTTPS.'
+        );
+    }
+
+    const allowedHosts = [
+        'localhost',
+        '127.0.0.1',
+        '::1'
+    ];
+
+    if (
+        !allowedHosts.includes(
+            parsed.hostname.toLowerCase()
+        )
+    ) {
+        throw new Error(
+            'Project validation only allows local targets.'
+        );
+    }
+
+    return parsed.toString();
+}
+
 function getErrorMessage(error) {
     if (
         error.response &&
@@ -198,58 +243,73 @@ app.post(
         }
     }
 );
+
 app.post(
     '/sandbox/run',
     async (req, res) => {
+
+        const findings =
+            Array.isArray(req.body?.findings)
+                ? req.body.findings
+                : [];
+
+        const mode =
+            req.body?.mode ===
+            'project-validation'
+                ? 'project-validation'
+                : 'simulation';
+
+        const targetUrl =
+            req.body?.targetUrl;
+
+        if (findings.length === 0) {
+            return res.status(400).json({
+                error:
+                    'No findings provided',
+            });
+        }
+
         try {
-            const findings =
-                Array.isArray(
-                    req.body?.findings
-                )
-                    ? req.body.findings
-                    : [];
 
-            const mode =
-                req.body?.mode ===
-                'project-validation'
-                    ? 'project-validation'
-                    : 'simulation';
-
-            const targetUrl =
-                req.body?.targetUrl;
+            let validatedTargetUrl;
 
             if (
-                mode === 'project-validation' &&
-                !targetUrl
+                mode ===
+                'project-validation'
             ) {
-                return res.status(400).json({
-                    error:
-                        'targetUrl is required for project validation.',
-                });
+
+                validatedTargetUrl =
+                    validateSandboxTarget(
+                        targetUrl
+                    );
+
+                console.log(
+                    `[sandbox] Project validation target: ${validatedTargetUrl}`
+                );
             }
-            console.log(
-                `[sandbox] Starting mode=${mode}, findings=${findings.length}, target=${targetUrl || 'synthetic'}`
-            );
 
             const report =
                 await runSandbox({
                     findings,
                     mode,
-                    targetUrl,
+                    targetUrl:
+                        validatedTargetUrl,
                 });
 
-            return res.json(report);
-        } catch (error) {
-            console.error(
-                '[sandbox]',
-                error
+            return res.json(
+                report
             );
 
-            return res.status(500).json({
+        } catch (error) {
+
+            console.error(
+                '[sandbox] Error:',
+                getErrorMessage(error)
+            );
+
+            return res.status(400).json({
                 error:
-                    error instanceof Error
-                        ? error.message
-                        : String(error),
+                    getErrorMessage(error),
             });
         }
     }

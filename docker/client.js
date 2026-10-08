@@ -14,7 +14,79 @@
       ? error.message
       : String(error);
   }
+function validateProjectTargetUrl(targetUrl) {
+  if (
+    typeof targetUrl !== 'string' ||
+    !targetUrl.trim()
+  ) {
+    throw new Error(
+      'Project validation requires targetUrl.'
+    );
+  }
 
+  let parsed;
+
+  try {
+    parsed = new URL(targetUrl);
+  } catch {
+    throw new Error(
+      'Invalid project target URL.'
+    );
+  }
+
+  if (
+    parsed.protocol !== 'http:' &&
+    parsed.protocol !== 'https:'
+  ) {
+    throw new Error(
+      'Project validation only supports HTTP and HTTPS.'
+    );
+  }
+
+const allowedHosts = [
+  'localhost',
+  '127.0.0.1',
+  '::1',
+  '[::1]',
+];
+
+  if (
+    !allowedHosts.includes(
+      parsed.hostname.toLowerCase()
+    )
+  ) {
+    throw new Error(
+      'Project validation only supports local applications.'
+    );
+  }
+
+  return parsed;
+}
+
+
+function getDockerTargetUrl(targetUrl) {
+
+  const parsed =
+    validateProjectTargetUrl(
+      targetUrl
+    );
+
+if (
+  [
+    'localhost',
+    '127.0.0.1',
+    '::1',
+    '[::1]',
+  ].includes(
+    parsed.hostname.toLowerCase()
+  )
+) {
+  parsed.hostname =
+    'host.docker.internal';
+}
+
+  return parsed.toString();
+}
   async function checkDocker() {
     try {
       const info =
@@ -115,7 +187,8 @@
       await docker.createNetwork({
         Name: name,
         Driver: 'bridge',
-        Internal: false,
+        Internal:
+        !hostAccess,
         CheckDuplicate: true,
         Options: {
           'com.docker.network.bridge.enable_icc':
@@ -181,12 +254,13 @@
       );
   }
 
-  module.exports = {
-    docker,
-    checkDocker,
-    ensureImages,
-    createNetwork,
-    removeNetwork,
-    removeContainer,
-    getContainerLogs,
-  };
+module.exports = {
+  docker,
+  checkDocker,
+  ensureImages,
+  createNetwork,
+  removeNetwork,
+  removeContainer,
+  getContainerLogs,
+  getDockerTargetUrl,
+};
