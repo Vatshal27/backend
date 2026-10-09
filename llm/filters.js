@@ -120,22 +120,31 @@ const SECURITY_PATTERNS = [
     /expression injection/i,
 ];
 
-function isSecurityRelevant(finding) {
+function isSecurityRelevant(
+    finding
+) {
     const text = [
-        finding.id,
-        finding.type,
-        finding.message,
-        finding.explanation,
-        finding.vulnerability,
-        finding.cwe,
-        finding.ruleId,
+        finding?.id,
+        finding?.type,
+        finding?.message,
+        finding?.explanation,
+        finding?.vulnerability,
+        finding?.cwe,
+        finding?.ruleId,
     ]
-        .filter(Boolean)
-        .join(' ');
+        .filter(
+            Boolean
+        )
+        .join(
+            ' '
+        );
 
     const isObviousNoise =
         NOISE_PATTERNS.some(
-            pattern => pattern.test(text)
+            pattern =>
+                pattern.test(
+                    text
+                )
         );
 
     if (!isObviousNoise) {
@@ -143,16 +152,26 @@ function isSecurityRelevant(finding) {
     }
 
     return SECURITY_PATTERNS.some(
-        pattern => pattern.test(text)
+        pattern =>
+            pattern.test(
+                text
+            )
     );
 }
 
-function filterSecurityFindings(findings) {
-    if (!Array.isArray(findings)) {
+function filterSecurityFindings(
+    findings
+) {
+    if (
+        !Array.isArray(
+            findings
+        )
+    ) {
         return [];
     }
 
-    const before = findings.length;
+    const before =
+        findings.length;
 
     const filtered =
         findings.filter(
@@ -160,36 +179,52 @@ function filterSecurityFindings(findings) {
         );
 
     console.log(
-        `[LLM] Security filter: ${
-            before
-        } -> ${
-            filtered.length
-        } findings`
+        `[LLM] Security filter: ${before} -> ${filtered.length} findings`
     );
 
     return filtered;
 }
 
-function deduplicateFindings(findings) {
-    const seen = new Set();
+function deduplicateFindings(
+    findings
+) {
+    if (
+        !Array.isArray(
+            findings
+        )
+    ) {
+        return [];
+    }
+
+    const seen =
+        new Set();
 
     const result =
         findings.filter(
             finding => {
                 const key = [
-                    finding.file || '',
-                    finding.line || '',
-                    finding.id || '',
-                    finding.type || '',
+                    finding?.source || '',
+                    finding?.file || '',
+                    finding?.line || '',
+                    finding?.type || '',
+                    finding?.vulnerableCode || '',
                 ]
-                    .join('|')
+                    .join(
+                        '|'
+                    )
                     .toLowerCase();
 
-                if (seen.has(key)) {
+                if (
+                    seen.has(
+                        key
+                    )
+                ) {
                     return false;
                 }
 
-                seen.add(key);
+                seen.add(
+                    key
+                );
 
                 return true;
             }
@@ -210,9 +245,365 @@ function deduplicateFindings(findings) {
     return result;
 }
 
-function isRelevantSourceFile(file) {
+function getFindingText(
+    finding
+) {
+    return [
+        finding?.type,
+        finding?.explanation,
+        finding?.fix,
+        finding?.fixExplanation,
+        finding?.vulnerableCode,
+    ]
+        .filter(
+            Boolean
+        )
+        .join(
+            '\n'
+        );
+}
+
+function isSecretClaim(
+    finding
+) {
+    const text = [
+        finding?.type,
+        finding?.explanation,
+    ]
+        .filter(
+            Boolean
+        )
+        .join(
+            ' '
+        );
+
+    return /hard.?coded.*(credential|password|secret|api.?key|access.?token|auth.?token|private.?key)|credential|password|secret|api.?key|access.?token|auth.?token/i.test(
+        text
+    );
+}
+
+function containsSecretEvidence(
+    value
+) {
+    const code =
+        String(
+            value ||
+            ''
+        );
+
+    if (!code.trim()) {
+        return false;
+    }
+
+    const patterns = [
+        /\b(password|passwd|pwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|credential)\b\s*[:=]\s*['"`][^'"`\n]{4,}['"`]/i,
+        /\bAKIA[A-Z0-9]{16}\b/,
+        /\b(?:sk|pk)_(?:live|test)_[A-Za-z0-9_-]{8,}\b/,
+        /\bBearer\s+[A-Za-z0-9._~+/=-]{8,}\b/i,
+        /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/,
+        /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
+        /:\/\/[^:\s/]+:[^@\s/]+@/,
+    ];
+
+    return patterns.some(
+        pattern =>
+            pattern.test(
+                code
+            )
+    );
+}
+
+function isDependencyClaim(
+    finding
+) {
+    const text = [
+        finding?.type,
+        finding?.explanation,
+    ]
+        .filter(
+            Boolean
+        )
+        .join(
+            ' '
+        );
+
+    return /dependency|package vulnerability|vulnerable package|vulnerable library|vulnerable module|supply.?chain|dependency confusion/i.test(
+        text
+    );
+}
+
+function hasDependencyAdvisoryEvidence(
+    finding
+) {
+    const text =
+        getFindingText(
+            finding
+        );
+
+    const hasAdvisory =
+        /\bCVE-\d{4}-\d{4,}\b/i.test(
+            text
+        ) ||
+        /\bGHSA-[a-z0-9-]+\b/i.test(
+            text
+        );
+
+    const hasVersion =
+        /\b\d+\.\d+(?:\.\d+)?(?:[-+][A-Za-z0-9.-]+)?\b/.test(
+            text
+        );
+
+    return (
+        hasAdvisory &&
+        hasVersion
+    );
+}
+
+function isImportOnlyEvidence(
+    value
+) {
+    const code =
+        String(
+            value ||
+            ''
+        )
+            .trim()
+            .replace(
+                /\r/g,
+                ''
+            );
+
+    if (!code) {
+        return false;
+    }
+
+    const meaningfulLines =
+        code
+            .split(
+                '\n'
+            )
+            .map(
+                line =>
+                    line.trim()
+            )
+            .filter(
+                line =>
+                    line &&
+                    !line.startsWith(
+                        '//'
+                    ) &&
+                    !line.startsWith(
+                        '/*'
+                    ) &&
+                    !line.startsWith(
+                        '*'
+                    )
+            );
+
+    if (
+        meaningfulLines.length ===
+        0
+    ) {
+        return false;
+    }
+
+    return meaningfulLines.every(
+        line =>
+            /^import\b/.test(
+                line
+            ) ||
+            /^require\s*\(/.test(
+                line
+            )
+    );
+}
+
+function validateAiFinding(
+    finding
+) {
+    if (
+        !finding ||
+        finding.source !==
+            'ai'
+    ) {
+        return {
+            valid:
+                false,
+            reason:
+                'finding does not have AI provenance',
+        };
+    }
+
+    if (
+        !String(
+            finding.type ||
+            ''
+        ).trim()
+    ) {
+        return {
+            valid:
+                false,
+            reason:
+                'missing vulnerability type',
+        };
+    }
+
+    if (
+        !String(
+            finding.file ||
+            ''
+        ).trim() ||
+        finding.file ===
+            'Unknown'
+    ) {
+        return {
+            valid:
+                false,
+            reason:
+                'missing source file',
+        };
+    }
+
+    if (
+        !String(
+            finding.vulnerableCode ||
+            ''
+        ).trim()
+    ) {
+        return {
+            valid:
+                false,
+            reason:
+                'missing vulnerable-code evidence',
+        };
+    }
+
+    if (
+        !String(
+            finding.explanation ||
+            ''
+        ).trim()
+    ) {
+        return {
+            valid:
+                false,
+            reason:
+                'missing explanation',
+        };
+    }
+
+    if (
+        isSecretClaim(
+            finding
+        ) &&
+        !containsSecretEvidence(
+            finding.vulnerableCode
+        )
+    ) {
+        return {
+            valid:
+                false,
+            reason:
+                'secret or credential claim has no secret-like literal evidence',
+        };
+    }
+
+    if (
+        isDependencyClaim(
+            finding
+        ) &&
+        !hasDependencyAdvisoryEvidence(
+            finding
+        )
+    ) {
+        return {
+            valid:
+                false,
+            reason:
+                'dependency vulnerability lacks version plus CVE/GHSA evidence',
+        };
+    }
+
+    if (
+        isImportOnlyEvidence(
+            finding.vulnerableCode
+        ) &&
+        (
+            isSecretClaim(
+                finding
+            ) ||
+            isDependencyClaim(
+                finding
+            )
+        )
+    ) {
+        return {
+            valid:
+                false,
+            reason:
+                'ordinary import statements do not prove the claimed vulnerability',
+        };
+    }
+
+    return {
+        valid:
+            true,
+        reason:
+            null,
+    };
+}
+
+function filterSupportedAiFindings(
+    findings
+) {
+    if (
+        !Array.isArray(
+            findings
+        )
+    ) {
+        return [];
+    }
+
+    const accepted = [];
+
+    for (
+        const finding of
+            findings
+    ) {
+        const validation =
+            validateAiFinding(
+                finding
+            );
+
+        if (
+            validation.valid
+        ) {
+            accepted.push(
+                finding
+            );
+            continue;
+        }
+
+        console.warn(
+            `[LLM] Rejected AI finding "${finding?.type || 'Unknown'}": ${validation.reason}`
+        );
+    }
+
+    console.log(
+        `[LLM] AI evidence validation: ${findings.length} -> ${accepted.length} findings`
+    );
+
+    return accepted;
+}
+
+function isRelevantSourceFile(
+    file
+) {
     const filePath =
-        String(file?.path || '');
+        String(
+            file?.path ||
+            ''
+        );
 
     if (!filePath) {
         return false;
@@ -221,34 +612,50 @@ function isRelevantSourceFile(file) {
     if (
         IGNORED_PATH_PATTERNS.some(
             pattern =>
-                pattern.test(filePath)
+                pattern.test(
+                    filePath
+                )
         )
     ) {
         return false;
     }
 
     const lowerPath =
-        filePath.toLowerCase();
+        filePath
+            .toLowerCase();
 
     const lastDot =
-        lowerPath.lastIndexOf('.');
+        lowerPath
+            .lastIndexOf(
+                '.'
+            );
 
-    if (lastDot === -1) {
+    if (
+        lastDot ===
+        -1
+    ) {
         return false;
     }
 
     const extension =
-        lowerPath.slice(lastDot);
+        lowerPath.slice(
+            lastDot
+        );
 
     return CODE_EXTENSIONS.has(
         extension
     );
 }
 
-function buildTargetsFromFiles(files) {
+function buildTargetsFromFiles(
+    files
+) {
     if (
-        !Array.isArray(files) ||
-        files.length === 0
+        !Array.isArray(
+            files
+        ) ||
+        files.length ===
+            0
     ) {
         return [];
     }
@@ -259,41 +666,42 @@ function buildTargetsFromFiles(files) {
         );
 
     console.log(
-        `[LLM] AI fallback selected ${
-            relevantFiles.length
-        }/${files.length} source files`
+        `[LLM] AI fallback selected ${relevantFiles.length}/${files.length} source files`
     );
 
     return relevantFiles.map(
-        (file, index) => ({
+        (
+            file,
+            index
+        ) => ({
             id:
                 `ai-audit-${index + 1}`,
-
             type:
                 'AI Security Review',
-
             severity:
                 'Medium',
-
             file:
                 file.path ||
                 'Unknown',
-
             line:
                 '',
-
             message:
                 'Review this source file for actual security vulnerabilities only.',
-
             codeContext:
-                (file.code || '')
-                    .slice(0, 2500),
+                String(
+                    file.code ||
+                    ''
+                ).slice(
+                    0,
+                    2500
+                ),
         })
     );
 }
 
 module.exports = {
     filterSecurityFindings,
+    filterSupportedAiFindings,
     deduplicateFindings,
     buildTargetsFromFiles,
 };

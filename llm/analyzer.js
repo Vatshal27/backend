@@ -1,69 +1,124 @@
 'use strict';
 
-const { buildSecurityPrompt } = require('./prompt-builder');
-const { askOllama } = require('./ollama');
+const {
+    buildSecurityPrompt,
+} = require(
+    './prompt-builder'
+);
 
 const {
-    normaliseFinding,
+    askOllama,
+} = require(
+    './ollama'
+);
+
+const {
     parseFindings,
-} = require('./parser');
+} = require(
+    './parser'
+);
 
 const {
     filterSecurityFindings,
+    filterSupportedAiFindings,
     deduplicateFindings,
-} = require('./filters');
+} = require(
+    './filters'
+);
 
 const {
     filterSourceFiles,
-} = require('../docker-scanner');
+} = require(
+    '../docker-scanner'
+);
 
-const FILE_BATCH_SIZE = 3;
-const CONCURRENCY = 1;
+const FILE_BATCH_SIZE =
+    3;
+
+const CONCURRENCY =
+    1;
+
 const LLM_ENABLED =
-    String(process.env.LLM_ENABLED || 'false').toLowerCase() === 'true';
+    String(
+        process.env
+            .LLM_ENABLED ||
+        'false'
+    ).toLowerCase() ===
+    'true';
 
-function normalizePath(filePath) {
-    return String(filePath || '')
-        .replace(/\\/g, '/')
-        .replace(/^\/+/, '')
+function normalizePath(
+    filePath
+) {
+    return String(
+        filePath ||
+        ''
+    )
+        .replace(
+            /\\/g,
+            '/'
+        )
+        .replace(
+            /^\/+/,
+            ''
+        )
         .toLowerCase();
 }
 
-function getFileNames(filePath) {
+function getFileNames(
+    filePath
+) {
     const normalized =
-        normalizePath(filePath);
+        normalizePath(
+            filePath
+        );
 
     return [
         normalized,
-        normalized.split('/').pop(),
-    ].filter(Boolean);
+        normalized
+            .split(
+                '/'
+            )
+            .pop(),
+    ].filter(
+        Boolean
+    );
 }
 
 function findingBelongsToFiles(
     finding,
     files
 ) {
-    if (!finding?.file) {
+    if (
+        !finding?.file
+    ) {
         return false;
     }
 
     const findingNames =
-        getFileNames(finding.file);
-
-    return files.some(file => {
-        const fileNames =
-            getFileNames(file.path);
-
-        return findingNames.some(
-            findingName =>
-                fileNames.includes(
-                    findingName
-                )
+        getFileNames(
+            finding.file
         );
-    });
+
+    return files.some(
+        file => {
+            const fileNames =
+                getFileNames(
+                    file.path
+                );
+
+            return findingNames.some(
+                findingName =>
+                    fileNames.includes(
+                        findingName
+                    )
+            );
+        }
+    );
 }
 
-function createFileBatches(files) {
+function createFileBatches(
+    files
+) {
     const batches = [];
 
     for (
@@ -87,7 +142,9 @@ function createAnalysisBatches(
     findings
 ) {
     const fileBatches =
-        createFileBatches(files);
+        createFileBatches(
+            files
+        );
 
     return fileBatches.map(
         batchFiles => {
@@ -101,10 +158,40 @@ function createAnalysisBatches(
                 );
 
             return {
-                files: batchFiles,
-                findings: batchFindings,
+                files:
+                    batchFiles,
+                findings:
+                    batchFindings,
             };
         }
+    );
+}
+
+function normalizeStaticFindings(
+    staticFindings
+) {
+    if (
+        !Array.isArray(
+            staticFindings
+        )
+    ) {
+        return [];
+    }
+
+    return staticFindings.map(
+        (
+            finding,
+            index
+        ) => ({
+            ...finding,
+            id:
+                String(
+                    finding?.id ||
+                    `static-${index + 1}`
+                ),
+            source:
+                'static',
+        })
     );
 }
 
@@ -123,35 +210,38 @@ async function analyzeBatch(
 
     const prompt =
         buildSecurityPrompt({
-            findings: batch.findings,
-            files: batch.files,
+            findings:
+                batch.findings,
+            files:
+                batch.files,
         });
 
     try {
         const raw =
-            await askOllama(prompt);
+            await askOllama(
+                prompt
+            );
 
-        return parseFindings(
-            raw,
-            batch.findings
+        const parsed =
+            parseFindings(
+                raw
+            );
+
+        return filterSupportedAiFindings(
+            parsed
         );
-    } catch (err) {
+    } catch (
+        err
+    ) {
         console.error(
             `[LLM] Batch ${
                 batchIndex + 1
             } failed: ${
                 err.message
-            }. Falling back to static findings normalization.`
+            }. AI findings for this batch will be omitted.`
         );
 
-        return batch.findings.map(
-            (finding, index) =>
-                normaliseFinding(
-                    {},
-                    index,
-                    finding
-                )
-        );
+        return [];
     }
 }
 
@@ -159,27 +249,28 @@ async function analyzeFindings(
     staticFindings,
     sourceFiles
 ) {
-if (!LLM_ENABLED) {
-    console.log(
-        '[LLM] Disabled. Using static findings only.'
-    );
-
-    return Array.isArray(staticFindings)
-        ? deduplicateFindings(
-            staticFindings
-        )
-        : [];
-}
     let findings =
-        Array.isArray(
+        normalizeStaticFindings(
             staticFindings
-        )
-            ? staticFindings
-            : [];
+        );
+
+    if (
+        !LLM_ENABLED
+    ) {
+        console.log(
+            '[LLM] Disabled. Using static findings only.'
+        );
+
+        return deduplicateFindings(
+            findings
+        );
+    }
 
     const files =
         filterSourceFiles(
-            Array.isArray(sourceFiles)
+            Array.isArray(
+                sourceFiles
+            )
                 ? sourceFiles
                 : []
         );
@@ -188,11 +279,12 @@ if (!LLM_ENABLED) {
         `[LLM] Source files after filtering: ${files.length}`
     );
 
-    if (findings.length > 0) {
+    if (
+        findings.length >
+        0
+    ) {
         console.log(
-            `[LLM] Static analysis returned ${
-                findings.length
-            } findings`
+            `[LLM] Static analysis returned ${findings.length} findings`
         );
 
         findings =
@@ -206,51 +298,27 @@ if (!LLM_ENABLED) {
             );
 
         console.log(
-            `[LLM] Security findings after filtering: ${
-                findings.length
-            }`
+            `[LLM] Security findings after filtering: ${findings.length}`
         );
-
     } else {
         console.log(
             '[LLM] Static analysis returned no findings'
         );
     }
 
-    if (files.length === 0) {
-        if (findings.length === 0) {
-            console.log(
-                '[LLM] No source files or findings available for AI analysis'
-            );
-
-            return [];
-        }
-
+    if (
+        files.length ===
+        0
+    ) {
         console.log(
-            '[LLM] No source files available; analyzing static findings only'
+            '[LLM] No source files available for independent AI source review'
         );
 
-        const result =
-            await analyzeBatch(
-                {
-                    files: [],
-                    findings,
-                },
-                0,
-                1
-            );
-
-        return deduplicateFindings(
-            result
-        );
+        return findings;
     }
 
     console.log(
-        `[LLM] AI will analyze ${
-            files.length
-        } source files and ${
-            findings.length
-        } static findings`
+        `[LLM] AI will analyze ${files.length} source files and ${findings.length} static findings`
     );
 
     const batches =
@@ -260,12 +328,10 @@ if (!LLM_ENABLED) {
         );
 
     console.log(
-        `[LLM] Created ${
-            batches.length
-        } AI source batches`
+        `[LLM] Created ${batches.length} AI source batches`
     );
 
-    const allFindings = [];
+    const aiFindings = [];
 
     for (
         let i = 0;
@@ -279,9 +345,7 @@ if (!LLM_ENABLED) {
             );
 
         console.log(
-            `[LLM] Running ${
-                currentBatches.length
-            } batch(es)`
+            `[LLM] Running ${currentBatches.length} batch(es)`
         );
 
         const results =
@@ -300,45 +364,52 @@ if (!LLM_ENABLED) {
             );
 
         for (
-            const batchResults
-            of results
+            const batchResults of
+                results
         ) {
-            allFindings.push(
+            aiFindings.push(
                 ...batchResults
             );
         }
     }
 
-    const finalFindings =
+    const finalAiFindings =
         deduplicateFindings(
-            allFindings
+            aiFindings
         );
 
     console.log(
-        `[LLM] Parsed total of ${
-            finalFindings.length
-        } findings from AI analysis`
+        `[LLM] Parsed total of ${finalAiFindings.length} supported findings from AI analysis`
     );
 
     const withPayloads =
-        finalFindings.filter(
+        finalAiFindings.filter(
             finding =>
                 Array.isArray(
-                    finding.attackPayloads
+                    finding
+                        .attackPayloads
                 ) &&
-                finding.attackPayloads.length >
+                finding
+                    .attackPayloads
+                    .length >
                     0
         );
 
     console.log(
-        `[LLM] ${
-            withPayloads.length
-        }/${
-            finalFindings.length
-        } findings have attack payloads`
+        `[LLM] ${withPayloads.length}/${finalAiFindings.length} AI findings have attack payloads`
     );
 
-    return finalFindings;
+    const combined =
+        deduplicateFindings([
+            ...findings,
+            ...finalAiFindings,
+        ]);
+
+    console.log(
+        `[LLM] Returning ${combined.length} combined static + AI findings`
+    );
+
+    return combined;
 }
 
 module.exports = {

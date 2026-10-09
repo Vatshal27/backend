@@ -1,5 +1,7 @@
 'use strict';
 
+const crypto = require('node:crypto');
+
 const VALID_ATTACK_TYPES = [
     'sqli',
     'xss',
@@ -12,140 +14,321 @@ const VALID_ATTACK_TYPES = [
     'other',
 ];
 
+const VALID_SEVERITIES = new Set([
+    'High',
+    'Medium',
+    'Low',
+]);
+
+function createAiFindingId(
+    finding,
+    index
+) {
+    const identity = [
+        finding.file || '',
+        finding.line || '',
+        finding.type ||
+            finding.vulnerability ||
+            '',
+        finding.vulnerableCode || '',
+        index,
+    ].join('|');
+
+    const digest =
+        crypto
+            .createHash(
+                'sha256'
+            )
+            .update(
+                identity
+            )
+            .digest(
+                'hex'
+            )
+            .slice(
+                0,
+                12
+            );
+
+    return `ai-${digest}`;
+}
+
+function normalizeSeverity(
+    severity
+) {
+    const value =
+        String(
+            severity ||
+            'Medium'
+        );
+
+    return VALID_SEVERITIES.has(
+        value
+    )
+        ? value
+        : 'Medium';
+}
+
+function normalizeConfidence(
+    confidence
+) {
+    const value =
+        Number(
+            confidence
+        );
+
+    if (
+        !Number.isFinite(
+            value
+        )
+    ) {
+        return null;
+    }
+
+    return Math.max(
+        0,
+        Math.min(
+            100,
+            Math.round(
+                value
+            )
+        )
+    );
+}
+
 function normaliseFinding(
     finding,
-    index,
-    staticFinding = {}
+    index
 ) {
-    let attackType = String(
-        finding.attackType ||
-        staticFinding.attackType ||
-        'other'
-    ).toLowerCase();
+    let attackType =
+        String(
+            finding.attackType ||
+            'other'
+        ).toLowerCase();
 
     if (
         !VALID_ATTACK_TYPES.includes(
             attackType
         )
     ) {
-        attackType = 'other';
+        attackType =
+            'other';
     }
 
-    let attackPayloads = [];
-
-    if (
+    const attackPayloads =
         Array.isArray(
             finding.attackPayloads
         )
-    ) {
-        attackPayloads =
-            finding.attackPayloads
-                .map(p => String(p))
-                .filter(p =>
-                    p.trim()
-                );
-    }
+            ? finding.attackPayloads
+                .map(
+                    payload =>
+                        String(
+                            payload
+                        ).trim()
+                )
+                .filter(
+                    Boolean
+                )
+            : [];
+
+    const attackStory =
+        Array.isArray(
+            finding.attackStory
+        )
+            ? finding.attackStory
+                .map(
+                    step =>
+                        String(
+                            step
+                        ).trim()
+                )
+                .filter(
+                    Boolean
+                )
+            : [];
 
     return {
-        id: String(
-            finding.id ||
-            staticFinding.id ||
-            `finding-${index + 1}`
-        ),
-
-        type: String(
-            finding.type ||
-            finding.vulnerability ||
-            staticFinding.type ||
-            staticFinding.vulnerability ||
-            'Security Issue'
-        ),
-
+        id:
+            createAiFindingId(
+                finding,
+                index
+            ),
+        source:
+            'ai',
+        type:
+            String(
+                finding.type ||
+                finding.vulnerability ||
+                'Security Issue'
+            ),
         severity:
-            finding.severity ||
-            staticFinding.severity ||
-            'Medium',
-
-        file: String(
-            finding.file ||
-            staticFinding.file ||
-            'Unknown'
-        ),
-
-        line: String(
-            finding.line ||
-            staticFinding.line ||
-            ''
-        ),
-
-        explanation: String(
-            finding.explanation ||
-            finding.fixExplanation ||
-            staticFinding.message ||
-            'Security issue detected'
-        ),
-
-        attackStory:
-            Array.isArray(
-                finding.attackStory
-            ) &&
-            finding.attackStory.length > 0
-                ? finding.attackStory
-                : [
-                    `Step 1: Identify issue in ${
-                        finding.file ||
-                        staticFinding.file ||
-                        'file'
-                    } at line ${
-                        finding.line ||
-                        staticFinding.line ||
-                        ''
-                    }`,
-                    `Step 2: Craft exploit payload for ${
-                        finding.type ||
-                        staticFinding.type ||
-                        'vulnerability'
-                    }`,
-                ],
-
-        fix: String(
-            finding.fix ||
-            finding.fixExplanation ||
-            'Review code and sanitize input or update dependencies.'
-        ),
-
+            normalizeSeverity(
+                finding.severity
+            ),
+        confidence:
+            normalizeConfidence(
+                finding.confidence
+            ),
+        verification:
+            'unverified',
+        file:
+            String(
+                finding.file ||
+                'Unknown'
+            ),
+        line:
+            String(
+                finding.line ||
+                ''
+            ),
+        explanation:
+            String(
+                finding.explanation ||
+                ''
+            ),
+        attackStory,
+        fix:
+            String(
+                finding.fix ||
+                finding.fixExplanation ||
+                ''
+            ),
         attackType,
-
         attackPayloads,
-
-        attackScript: String(
-            finding.attackScript ||
-            ''
-        ),
-
-        vulnerableCode: String(
-            finding.vulnerableCode ||
-            staticFinding.codeContext ||
-            ''
-        ),
-
-        fixedCode: String(
-            finding.fixedCode ||
-            ''
-        ),
+        attackScript:
+            String(
+                finding.attackScript ||
+                ''
+            ),
+        vulnerableCode:
+            String(
+                finding.vulnerableCode ||
+                ''
+            ),
+        fixedCode:
+            String(
+                finding.fixedCode ||
+                ''
+            ),
+        fixExplanation:
+            String(
+                finding.fixExplanation ||
+                ''
+            ),
     };
 }
 
-function repairAndParseJSON(raw) {
-    let cleaned = String(raw)
-        .replace(/```json/gi, '')
-        .replace(/```/g, '')
-        .trim();
+function extractCompleteObjects(
+    value
+) {
+    const objects = [];
+
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    let start = -1;
+
+    for (
+        let i = 0;
+        i < value.length;
+        i += 1
+    ) {
+        const char =
+            value[i];
+
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+
+        if (
+            char === '\\' &&
+            inString
+        ) {
+            escaped = true;
+            continue;
+        }
+
+        if (char === '"') {
+            inString =
+                !inString;
+            continue;
+        }
+
+        if (inString) {
+            continue;
+        }
+
+        if (char === '{') {
+            if (depth === 0) {
+                start = i;
+            }
+
+            depth += 1;
+            continue;
+        }
+
+        if (char === '}') {
+            if (depth > 0) {
+                depth -= 1;
+            }
+
+            if (
+                depth === 0 &&
+                start !== -1
+            ) {
+                const objectText =
+                    value.slice(
+                        start,
+                        i + 1
+                    );
+
+                try {
+                    objects.push(
+                        JSON.parse(
+                            objectText
+                        )
+                    );
+                } catch {
+                    // Ignore malformed partial object.
+                }
+
+                start = -1;
+            }
+        }
+    }
+
+    return objects;
+}
+
+function repairAndParseJSON(
+    raw
+) {
+    const cleaned =
+        String(
+            raw ||
+            ''
+        )
+            .replace(
+                /```json/gi,
+                ''
+            )
+            .replace(
+                /```/g,
+                ''
+            )
+            .trim();
+
+    if (!cleaned) {
+        return null;
+    }
 
     try {
-        return JSON.parse(cleaned);
+        return JSON.parse(
+            cleaned
+        );
     } catch {
-        // Continue with repair.
+        // Continue with controlled recovery.
     }
 
     const findingsMatch =
@@ -153,195 +336,70 @@ function repairAndParseJSON(raw) {
             /"findings"\s*:\s*\[([\s\S]*)/
         );
 
-    let jsonContent =
-        findingsMatch
-            ? findingsMatch[1]
-            : cleaned;
-
-    const extractedObjects = [];
-
-    let depth = 0;
-    let inString = false;
-    let escapeNext = false;
-    let objectStart = -1;
-
-    for (
-        let i = 0;
-        i < jsonContent.length;
-        i++
-    ) {
-        const char =
-            jsonContent[i];
-
-        if (escapeNext) {
-            escapeNext = false;
-            continue;
-        }
+    if (findingsMatch) {
+        const objects =
+            extractCompleteObjects(
+                findingsMatch[1]
+            );
 
         if (
-            char === '\\' &&
-            inString
+            objects.length >
+            0
         ) {
-            escapeNext = true;
-            continue;
-        }
-
-        if (char === '"') {
-            inString = !inString;
-            continue;
-        }
-
-        if (!inString) {
-            if (char === '{') {
-                if (depth === 0) {
-                    objectStart = i;
-                }
-
-                depth++;
-            } else if (
-                char === '}'
-            ) {
-                depth--;
-
-                if (
-                    depth === 0 &&
-                    objectStart !== -1
-                ) {
-                    const objStr =
-                        jsonContent.slice(
-                            objectStart,
-                            i + 1
-                        );
-
-                    try {
-                        extractedObjects.push(
-                            JSON.parse(
-                                objStr
-                            )
-                        );
-                    } catch {
-                        // Skip malformed object.
-                    }
-
-                    objectStart = -1;
-                }
-            }
+            return {
+                findings:
+                    objects,
+            };
         }
     }
 
+    const objects =
+        extractCompleteObjects(
+            cleaned
+        );
+
     if (
-        extractedObjects.length > 0
+        objects.length >
+        0
     ) {
+        const wrapper =
+            objects.find(
+                item =>
+                    Array.isArray(
+                        item?.findings
+                    )
+            );
+
+        if (wrapper) {
+            return wrapper;
+        }
+
         return {
             findings:
-                extractedObjects,
+                objects,
         };
     }
 
-    let repaired = cleaned;
-
-    repaired = repaired.replace(
-        /,\s*"[^"]*"\s*:\s*"[^"]*$/g,
-        ''
-    );
-
-    repaired = repaired.replace(
-        /,\s*"[^"]*"\s*:\s*$/g,
-        ''
-    );
-
-    repaired = repaired.replace(
-        /,\s*$/g,
-        ''
-    );
-
-    let openBraces = 0;
-    let openBrackets = 0;
-
-    inString = false;
-    escapeNext = false;
-
-    for (
-        let i = 0;
-        i < repaired.length;
-        i++
-    ) {
-        const char =
-            repaired[i];
-
-        if (escapeNext) {
-            escapeNext = false;
-            continue;
-        }
-
-        if (
-            char === '\\' &&
-            inString
-        ) {
-            escapeNext = true;
-            continue;
-        }
-
-        if (char === '"') {
-            inString = !inString;
-            continue;
-        }
-
-        if (!inString) {
-            if (char === '{') {
-                openBraces++;
-            }
-
-            if (char === '}') {
-                openBraces--;
-            }
-
-            if (char === '[') {
-                openBrackets++;
-            }
-
-            if (char === ']') {
-                openBrackets--;
-            }
-        }
-    }
-
-    if (inString) {
-        repaired += '"';
-    }
-
-    while (openBraces > 0) {
-        repaired += '}';
-        openBraces--;
-    }
-
-    while (openBrackets > 0) {
-        repaired += ']';
-        openBrackets--;
-    }
-
-    try {
-        return JSON.parse(
-            repaired
-        );
-    } catch {
-        return null;
-    }
+    return null;
 }
 
 function parseFindings(
-    raw,
-    staticBatch = []
+    raw
 ) {
     const parsed =
-        repairAndParseJSON(raw);
+        repairAndParseJSON(
+            raw
+        );
 
     let rawFindings = [];
 
     if (
-        Array.isArray(parsed)
+        Array.isArray(
+            parsed
+        )
     ) {
-        rawFindings = parsed;
+        rawFindings =
+            parsed;
     } else if (
         parsed &&
         Array.isArray(
@@ -352,44 +410,33 @@ function parseFindings(
             parsed.findings;
     }
 
-    const normalized = [];
-
-    const maxLen =
-        Math.max(
-            rawFindings.length,
-            staticBatch.length
-        );
-
-    for (
-        let i = 0;
-        i < maxLen;
-        i++
+    if (
+        rawFindings.length ===
+        0
     ) {
-        const rawFinding =
-            rawFindings[i] || {};
-
-        const staticFinding =
-            staticBatch[i] || {};
-
-        if (
-            Object.keys(
-                rawFinding
-            ).length > 0 ||
-            Object.keys(
-                staticFinding
-            ).length > 0
-        ) {
-            normalized.push(
-                normaliseFinding(
-                    rawFinding,
-                    i,
-                    staticFinding
-                )
-            );
-        }
+        return [];
     }
 
-    return normalized;
+    return rawFindings
+        .filter(
+            finding =>
+                finding &&
+                typeof finding ===
+                    'object' &&
+                !Array.isArray(
+                    finding
+                )
+        )
+        .map(
+            (
+                finding,
+                index
+            ) =>
+                normaliseFinding(
+                    finding,
+                    index
+                )
+        );
 }
 
 module.exports = {

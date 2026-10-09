@@ -1,0 +1,947 @@
+{
+  "schemaVersion": "1.1",
+  "reportType": "SentinelAI Security Data",
+  "generatedAt": "2026-10-08T22:53:19.125Z",
+  "expiresAt": "2026-10-09T22:53:19.125Z",
+  "timeZone": "Asia/Kolkata",
+  "displayTime": {
+    "generated": "09 October 2026 at 04:23:19",
+    "expires": "10 October 2026 at 04:23:19"
+  },
+  "retentionHours": 24,
+  "project": null,
+  "target": {
+    "name": "Local Project Runtime",
+    "url": "http://localhost:5173",
+    "containerId": "",
+    "status": "running",
+    "internalUrl": null,
+    "browserUrl": "http://localhost:5173",
+    "healthUrl": "http://localhost:5173",
+    "isolated": false
+  },
+  "summary": {
+    "findings": 2,
+    "tested": 6,
+    "confirmed": 0,
+    "observedExposures": 0,
+    "inconclusive": 6,
+    "notReproduced": 2,
+    "runtimeTests": 6,
+    "runtimeFailed": 0,
+    "durationMs": 366
+  },
+  "findings": {
+    "all": [
+      {
+        "id": "finding-1",
+        "type": "Hardcoded secrets in Vite configuration",
+        "severity": "High",
+        "file": "vite.config.ts",
+        "line": "10",
+        "explanation": "EXACT vulnerable code: import { defineConfig } from 'vite'\nimport react from '@vitejs/plugin-react'\n\n// https://vite.dev/config/\nexport default defineConfig({\n  plugins: [react()],\n})",
+        "attackStory": [
+          "Step 1: The Vite configuration file is included in the build process.",
+          "Step 2: The `react` plugin import contains a hardcoded package name 'vitejs' which can be exploited to bypass authentication or access restricted resources.",
+          "Step 3: An attacker could replace the 'vitejs' with their own package, potentially gaining unauthorized control over the application."
+        ],
+        "fix": "Changed the import statement to use a different package name, ensuring that only authorized packages can be used.",
+        "attackType": "other",
+        "attackPayloads": [
+          "react from '@vitejs/plugin-react'"
+        ],
+        "attackScript": "",
+        "vulnerableCode": "import { defineConfig } from 'vite'\nimport react from '@vitejs/plugin-react'\n\n// https://vite.dev/config/\nexport default defineConfig({\n  plugins: [react()],\n})",
+        "fixedCode": "import { defineConfig } from 'vite'\nimport reactPlugin from '@react-compiler-plugin/react'\n\n// https://vite.dev/config/\nexport default defineConfig({\n  plugins: [reactPlugin()],\n})"
+      },
+      {
+        "id": "finding-1",
+        "type": "Hardcoded credentials in CSS file",
+        "severity": "Low",
+        "file": "src/main.tsx",
+        "line": "10",
+        "explanation": "EXACT vulnerable code: `import \"./index.css\";`",
+        "attackStory": [
+          "Step 1: The attacker finds the hardcoded CSS file import in main.tsx.",
+          "Step 2: The attacker copies the content of index.css to identify any credentials or secrets.",
+          "Step 3: The attacker uses these credentials/secrets for unauthorized access or manipulation."
+        ],
+        "fix": "The fixed code uses an import statement that does not hardcode the file path, making it less likely for credentials or secrets to be exposed.",
+        "attackType": "other",
+        "attackPayloads": [
+          "No specific payload needed as this is a static analysis finding and no attack script is provided."
+        ],
+        "attackScript": "",
+        "vulnerableCode": "import \"./index.css\";",
+        "fixedCode": "import 'styles/index.css';"
+      }
+    ],
+    "static": [
+      {
+        "id": "finding-1",
+        "type": "Hardcoded secrets in Vite configuration",
+        "severity": "High",
+        "file": "vite.config.ts",
+        "line": "10",
+        "explanation": "EXACT vulnerable code: import { defineConfig } from 'vite'\nimport react from '@vitejs/plugin-react'\n\n// https://vite.dev/config/\nexport default defineConfig({\n  plugins: [react()],\n})",
+        "attackStory": [
+          "Step 1: The Vite configuration file is included in the build process.",
+          "Step 2: The `react` plugin import contains a hardcoded package name 'vitejs' which can be exploited to bypass authentication or access restricted resources.",
+          "Step 3: An attacker could replace the 'vitejs' with their own package, potentially gaining unauthorized control over the application."
+        ],
+        "fix": "Changed the import statement to use a different package name, ensuring that only authorized packages can be used.",
+        "attackType": "other",
+        "attackPayloads": [
+          "react from '@vitejs/plugin-react'"
+        ],
+        "attackScript": "",
+        "vulnerableCode": "import { defineConfig } from 'vite'\nimport react from '@vitejs/plugin-react'\n\n// https://vite.dev/config/\nexport default defineConfig({\n  plugins: [react()],\n})",
+        "fixedCode": "import { defineConfig } from 'vite'\nimport reactPlugin from '@react-compiler-plugin/react'\n\n// https://vite.dev/config/\nexport default defineConfig({\n  plugins: [reactPlugin()],\n})"
+      },
+      {
+        "id": "finding-1",
+        "type": "Hardcoded credentials in CSS file",
+        "severity": "Low",
+        "file": "src/main.tsx",
+        "line": "10",
+        "explanation": "EXACT vulnerable code: `import \"./index.css\";`",
+        "attackStory": [
+          "Step 1: The attacker finds the hardcoded CSS file import in main.tsx.",
+          "Step 2: The attacker copies the content of index.css to identify any credentials or secrets.",
+          "Step 3: The attacker uses these credentials/secrets for unauthorized access or manipulation."
+        ],
+        "fix": "The fixed code uses an import statement that does not hardcode the file path, making it less likely for credentials or secrets to be exposed.",
+        "attackType": "other",
+        "attackPayloads": [
+          "No specific payload needed as this is a static analysis finding and no attack script is provided."
+        ],
+        "attackScript": "",
+        "vulnerableCode": "import \"./index.css\";",
+        "fixedCode": "import 'styles/index.css';"
+      }
+    ],
+    "ai": [],
+    "correlated": []
+  },
+  "selfTest": {
+    "executed": true,
+    "reportId": "sandbox-eb2729b3f701",
+    "startedAt": "2026-10-08T22:53:04.265Z",
+    "finishedAt": "2026-10-08T22:53:05.835Z",
+    "summary": {
+      "findings": 0,
+      "tested": 6,
+      "confirmed": 6,
+      "observedExposures": 0,
+      "inconclusive": 0,
+      "notReproduced": 0,
+      "runtimeTests": 6,
+      "runtimeFailed": 0,
+      "durationMs": 1570
+    },
+    "controlledFixtures": 6,
+    "detected": 6,
+    "coverage": {
+      "detected": 6,
+      "total": 6
+    },
+    "target": {
+      "name": "SentinelAI Safe Simulation Target",
+      "url": "http://target:8080",
+      "containerId": "c731717b18f74d30b1ef7c1464aebf3fd7264b8c4b848da7b4580ddf2976a17c",
+      "status": "running",
+      "containerName": "sentinelai-target-sandbox-eb2729b3f701",
+      "internalUrl": "http://target:8080",
+      "browserUrl": null,
+      "healthUrl": "http://127.0.0.1:8080/health",
+      "isolated": true
+    },
+    "runtime": {
+      "attacks": [
+        {
+          "id": "atk-d97cadb69287",
+          "findingId": "runtime-sqli",
+          "tool": "runtime-generic",
+          "attackType": "sqli",
+          "target": "http://target:8080",
+          "status": "success",
+          "payload": "' OR '1'='1",
+          "request": {
+            "method": "GET",
+            "url": "http://target:8080/search?q=%27%20OR%20%271%27%3D%271"
+          },
+          "response": {
+            "statusCode": 200,
+            "contentType": "application/json",
+            "bodyLength": 272,
+            "bodyPreview": "{\"fixture\":\"sqli\",\"vulnerable\":true,\"query\":\"SELECT * FROM users WHERE name = '' OR '1'='1'\",\"results\":[{\"id\":1,\"username\":\"demo_admin\",\"email\":\"admin@example.local\",\"role\":\"administrator\"},{\"id\":2,\"username\":\"demo_student\",\"email\":\"student@example.local\",\"role\":\"user\"}]}",
+            "evidenceSnippet": null
+          },
+          "sensitiveData": [],
+          "startedAt": "2026-10-08T22:53:05.753Z",
+          "finishedAt": "2026-10-08T22:53:05.756Z",
+          "evidence": [
+            {
+              "id": "ev-f61e8a28648a",
+              "type": "request",
+              "timestamp": "2026-10-08T22:53:05.753Z",
+              "source": "runtime-generic",
+              "content": "GET http://target:8080/search?q=%27%20OR%20%271%27%3D%271"
+            },
+            {
+              "id": "ev-15ef9c38138b",
+              "type": "finding",
+              "timestamp": "2026-10-08T22:53:05.756Z",
+              "source": "runtime-generic",
+              "content": "Runtime behavior matched the expected vulnerability signal."
+            }
+          ]
+        },
+        {
+          "id": "atk-25a07256f48e",
+          "findingId": "runtime-xss",
+          "tool": "runtime-generic",
+          "attackType": "xss",
+          "target": "http://target:8080",
+          "status": "success",
+          "payload": "<script>alert(1)</script>",
+          "request": {
+            "method": "GET",
+            "url": "http://target:8080/greet?name=%3Cscript%3Ealert(1)%3C%2Fscript%3E"
+          },
+          "response": {
+            "statusCode": 200,
+            "contentType": "text/html",
+            "bodyLength": 57,
+            "bodyPreview": "<html><body>Hello <script>alert(1)</script></body></html>",
+            "evidenceSnippet": null
+          },
+          "sensitiveData": [],
+          "startedAt": "2026-10-08T22:53:05.756Z",
+          "finishedAt": "2026-10-08T22:53:05.757Z",
+          "evidence": [
+            {
+              "id": "ev-f61e8a28648a",
+              "type": "request",
+              "timestamp": "2026-10-08T22:53:05.756Z",
+              "source": "runtime-generic",
+              "content": "GET http://target:8080/greet?name=%3Cscript%3Ealert(1)%3C%2Fscript%3E"
+            },
+            {
+              "id": "ev-15ef9c38138b",
+              "type": "finding",
+              "timestamp": "2026-10-08T22:53:05.757Z",
+              "source": "runtime-generic",
+              "content": "Runtime behavior matched the expected vulnerability signal."
+            }
+          ]
+        },
+        {
+          "id": "atk-ab2bf27a809f",
+          "findingId": "runtime-cmdi",
+          "tool": "runtime-generic",
+          "attackType": "cmdi",
+          "target": "http://target:8080",
+          "status": "success",
+          "payload": "localhost;whoami",
+          "request": {
+            "method": "GET",
+            "url": "http://target:8080/ping?host=localhost%3Bwhoami"
+          },
+          "response": {
+            "statusCode": 200,
+            "contentType": "application/json",
+            "bodyLength": 203,
+            "bodyPreview": "{\"fixture\":\"cmdi\",\"vulnerable\":true,\"simulatedCommand\":\"ping -c 1 localhost;whoami\",\"simulatedOutput\":\"uid=1000(sentinel) gid=1000(sentinel)\",\"note\":\"No command is executed. This response is synthetic.\"}",
+            "evidenceSnippet": null
+          },
+          "sensitiveData": [],
+          "startedAt": "2026-10-08T22:53:05.757Z",
+          "finishedAt": "2026-10-08T22:53:05.758Z",
+          "evidence": [
+            {
+              "id": "ev-f61e8a28648a",
+              "type": "request",
+              "timestamp": "2026-10-08T22:53:05.757Z",
+              "source": "runtime-generic",
+              "content": "GET http://target:8080/ping?host=localhost%3Bwhoami"
+            },
+            {
+              "id": "ev-15ef9c38138b",
+              "type": "finding",
+              "timestamp": "2026-10-08T22:53:05.758Z",
+              "source": "runtime-generic",
+              "content": "Runtime behavior matched the expected vulnerability signal."
+            }
+          ]
+        },
+        {
+          "id": "atk-67047e1f35c1",
+          "findingId": "runtime-path-traversal",
+          "tool": "runtime-generic",
+          "attackType": "path_traversal",
+          "target": "http://target:8080",
+          "status": "success",
+          "payload": "../secret.txt",
+          "request": {
+            "method": "GET",
+            "url": "http://target:8080/file?name=..%2Fsecret.txt"
+          },
+          "response": {
+            "statusCode": 200,
+            "contentType": "application/json",
+            "bodyLength": 109,
+            "bodyPreview": "{\"fixture\":\"path_traversal\",\"vulnerable\":true,\"requested\":\"../secret.txt\",\"content\":\"SIMULATED_SECRET_VALUE\"}",
+            "evidenceSnippet": null
+          },
+          "sensitiveData": [],
+          "startedAt": "2026-10-08T22:53:05.758Z",
+          "finishedAt": "2026-10-08T22:53:05.759Z",
+          "evidence": [
+            {
+              "id": "ev-f61e8a28648a",
+              "type": "request",
+              "timestamp": "2026-10-08T22:53:05.758Z",
+              "source": "runtime-generic",
+              "content": "GET http://target:8080/file?name=..%2Fsecret.txt"
+            },
+            {
+              "id": "ev-15ef9c38138b",
+              "type": "finding",
+              "timestamp": "2026-10-08T22:53:05.759Z",
+              "source": "runtime-generic",
+              "content": "Runtime behavior matched the expected vulnerability signal."
+            }
+          ]
+        },
+        {
+          "id": "atk-e570baa0f6ad",
+          "findingId": "runtime-auth-bypass",
+          "tool": "runtime-generic",
+          "attackType": "auth_bypass",
+          "target": "http://target:8080",
+          "status": "success",
+          "payload": "Unauthenticated GET /admin",
+          "request": {
+            "method": "GET",
+            "url": "http://target:8080/admin"
+          },
+          "response": {
+            "statusCode": 200,
+            "contentType": "application/json",
+            "bodyLength": 271,
+            "bodyPreview": "{\"fixture\":\"auth_bypass\",\"vulnerable\":true,\"message\":\"Simulated protected administrator data\",\"users\":[{\"id\":1,\"username\":\"demo_admin\",\"email\":\"admin@example.local\",\"role\":\"administrator\"},{\"id\":2,\"username\":\"demo_student\",\"email\":\"student@example.local\",\"role\":\"user\"}]}",
+            "evidenceSnippet": null
+          },
+          "sensitiveData": [],
+          "startedAt": "2026-10-08T22:53:05.759Z",
+          "finishedAt": "2026-10-08T22:53:05.760Z",
+          "evidence": [
+            {
+              "id": "ev-f61e8a28648a",
+              "type": "request",
+              "timestamp": "2026-10-08T22:53:05.759Z",
+              "source": "runtime-generic",
+              "content": "GET http://target:8080/admin"
+            },
+            {
+              "id": "ev-15ef9c38138b",
+              "type": "finding",
+              "timestamp": "2026-10-08T22:53:05.760Z",
+              "source": "runtime-generic",
+              "content": "Runtime behavior matched the expected vulnerability signal."
+            }
+          ]
+        },
+        {
+          "id": "atk-1d8868db3b5c",
+          "findingId": "runtime-code-injection",
+          "tool": "runtime-generic",
+          "attackType": "code_injection",
+          "target": "http://target:8080",
+          "status": "success",
+          "payload": "process.env",
+          "request": {
+            "method": "GET",
+            "url": "http://target:8080/eval?code=process.env"
+          },
+          "response": {
+            "statusCode": 200,
+            "contentType": "application/json",
+            "bodyLength": 232,
+            "bodyPreview": "{\"fixture\":\"code_injection\",\"vulnerable\":true,\"input\":\"process.env\",\"simulatedEnvironment\":{\"NODE_ENV\":\"simulation\",\"HOME\":\"/home/sentinel\",\"PATH\":\"/usr/local/bin:/usr/bin\"},\"note\":\"No code is executed. This response is synthetic.\"}",
+            "evidenceSnippet": null
+          },
+          "sensitiveData": [],
+          "startedAt": "2026-10-08T22:53:05.760Z",
+          "finishedAt": "2026-10-08T22:53:05.761Z",
+          "evidence": [
+            {
+              "id": "ev-f61e8a28648a",
+              "type": "request",
+              "timestamp": "2026-10-08T22:53:05.760Z",
+              "source": "runtime-generic",
+              "content": "GET http://target:8080/eval?code=process.env"
+            },
+            {
+              "id": "ev-15ef9c38138b",
+              "type": "finding",
+              "timestamp": "2026-10-08T22:53:05.761Z",
+              "source": "runtime-generic",
+              "content": "Runtime behavior matched the expected vulnerability signal."
+            }
+          ]
+        }
+      ],
+      "validations": [
+        {
+          "findingId": "runtime-sqli",
+          "source": "runtime",
+          "attackType": "sqli",
+          "result": "confirmed",
+          "confidence": 95,
+          "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+          "attackId": "atk-d97cadb69287"
+        },
+        {
+          "findingId": "runtime-xss",
+          "source": "runtime",
+          "attackType": "xss",
+          "result": "confirmed",
+          "confidence": 95,
+          "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+          "attackId": "atk-25a07256f48e"
+        },
+        {
+          "findingId": "runtime-cmdi",
+          "source": "runtime",
+          "attackType": "cmdi",
+          "result": "confirmed",
+          "confidence": 95,
+          "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+          "attackId": "atk-ab2bf27a809f"
+        },
+        {
+          "findingId": "runtime-path-traversal",
+          "source": "runtime",
+          "attackType": "path_traversal",
+          "result": "confirmed",
+          "confidence": 95,
+          "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+          "attackId": "atk-67047e1f35c1"
+        },
+        {
+          "findingId": "runtime-auth-bypass",
+          "source": "runtime",
+          "attackType": "auth_bypass",
+          "result": "confirmed",
+          "confidence": 95,
+          "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+          "attackId": "atk-e570baa0f6ad"
+        },
+        {
+          "findingId": "runtime-code-injection",
+          "source": "runtime",
+          "attackType": "code_injection",
+          "result": "confirmed",
+          "confidence": 95,
+          "rationale": "Runtime testing reproduced behavior matching the vulnerability signal.",
+          "attackId": "atk-1d8868db3b5c"
+        }
+      ]
+    },
+    "events": [
+      {
+        "id": "evt-55977f2bba7f",
+        "step": 1,
+        "timestamp": "2026-10-08T22:53:04.266Z",
+        "stage": "initialization",
+        "status": "started",
+        "description": "Initializing isolated Safe Simulation environment."
+      },
+      {
+        "id": "evt-c6ecfb0b3fd6",
+        "step": 2,
+        "timestamp": "2026-10-08T22:53:04.277Z",
+        "stage": "initialization",
+        "status": "success",
+        "description": "Docker 29.8.2 is available."
+      },
+      {
+        "id": "evt-21dbc43d3ba0",
+        "step": 3,
+        "timestamp": "2026-10-08T22:53:04.388Z",
+        "stage": "initialization",
+        "status": "success",
+        "description": "Required sandbox images are available."
+      },
+      {
+        "id": "evt-248354975a01",
+        "step": 4,
+        "timestamp": "2026-10-08T22:53:04.433Z",
+        "stage": "network",
+        "status": "success",
+        "description": "Isolated internal Docker network created for Safe Simulation."
+      },
+      {
+        "id": "evt-30f83161b1c3",
+        "step": 5,
+        "timestamp": "2026-10-08T22:53:04.727Z",
+        "stage": "target",
+        "status": "running",
+        "description": "Synthetic Safe Simulation target started at http://target:8080."
+      },
+      {
+        "id": "evt-bcf166cfa54f",
+        "step": 6,
+        "timestamp": "2026-10-08T22:53:05.527Z",
+        "stage": "target",
+        "status": "success",
+        "description": "Synthetic Safe Simulation target is healthy inside the isolated sandbox at http://target:8080."
+      },
+      {
+        "id": "evt-8beb6e4e13a9",
+        "step": 7,
+        "timestamp": "2026-10-08T22:53:05.528Z",
+        "stage": "attack",
+        "status": "success",
+        "description": "6 runtime validation plan(s) created."
+      },
+      {
+        "id": "evt-739629050aad",
+        "step": 8,
+        "timestamp": "2026-10-08T22:53:05.834Z",
+        "stage": "attack",
+        "status": "success",
+        "description": "6 validation attack(s) completed."
+      },
+      {
+        "id": "evt-df29ddadf3ff",
+        "step": 9,
+        "timestamp": "2026-10-08T22:53:05.835Z",
+        "stage": "evidence",
+        "status": "success",
+        "description": "Validation evidence normalized and verdicts generated."
+      }
+    ]
+  },
+  "projectValidation": {
+    "executed": true,
+    "reportId": "sandbox-3b09665899c1",
+    "startedAt": "2026-10-08T22:53:18.759Z",
+    "finishedAt": "2026-10-08T22:53:19.125Z",
+    "summary": {
+      "findings": 2,
+      "tested": 6,
+      "confirmed": 0,
+      "observedExposures": 0,
+      "inconclusive": 6,
+      "notReproduced": 2,
+      "runtimeTests": 6,
+      "runtimeFailed": 0,
+      "durationMs": 366
+    },
+    "target": {
+      "name": "Local Project Runtime",
+      "url": "http://localhost:5173",
+      "containerId": "",
+      "status": "running",
+      "internalUrl": null,
+      "browserUrl": "http://localhost:5173",
+      "healthUrl": "http://localhost:5173",
+      "isolated": false
+    },
+    "runtime": {
+      "attacks": [
+        {
+          "id": "atk-789b1af87b11",
+          "findingId": "runtime-sqli",
+          "tool": "runtime-generic",
+          "attackType": "sqli",
+          "target": "http://localhost:5173/",
+          "status": "inconclusive",
+          "payload": "' OR '1'='1",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:5173/?q=%27+OR+%271%27%3D%271",
+            "parameter": "q"
+          },
+          "response": {
+            "statusCode": 200,
+            "contentType": "text/html",
+            "bodyLength": 612,
+            "bodyPreview": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refresh\";\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () => {};\nwindow.$RefreshSig$ = () => (type) => type;</script>\n\n    <script type=\"module\" src=\"/@vite/client\"></script>\n\n    <meta charset=\"UTF-8\" />\n    <link rel=\"icon\" type=\"image/svg+xml\" href=\"/vite.svg\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>cyberaid</title>\n  </head>\n  <body>\n    <div id=\"root\"></div>\n    <script type=\"module\" src=\"/src/main.tsx\"></script>\n  </body>\n</html>\n",
+            "evidenceSnippet": null
+          },
+          "sensitiveData": [],
+          "startedAt": "2026-10-08T22:53:19.023Z",
+          "finishedAt": "2026-10-08T22:53:19.030Z",
+          "evidence": [
+            {
+              "id": "ev-18b11436fc79",
+              "type": "request",
+              "timestamp": "2026-10-08T22:53:19.023Z",
+              "source": "runtime-generic",
+              "content": "GET http://localhost:5173/?q=%27+OR+%271%27%3D%271"
+            },
+            {
+              "id": "ev-d6f0bf672716",
+              "type": "log",
+              "timestamp": "2026-10-08T22:53:19.030Z",
+              "source": "route-discovery",
+              "content": "Selected route: {\"method\":\"GET\",\"url\":\"http://localhost:5173/\",\"source\":\"root\",\"parameters\":[]}"
+            }
+          ]
+        },
+        {
+          "id": "atk-fd48b8dcc16c",
+          "findingId": "runtime-xss",
+          "tool": "runtime-generic",
+          "attackType": "xss",
+          "target": "http://localhost:5173/",
+          "status": "inconclusive",
+          "payload": "<script>alert(1)</script>",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:5173/?name=%3Cscript%3Ealert%281%29%3C%2Fscript%3E",
+            "parameter": "name"
+          },
+          "response": {
+            "statusCode": 200,
+            "contentType": "text/html",
+            "bodyLength": 612,
+            "bodyPreview": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refresh\";\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () => {};\nwindow.$RefreshSig$ = () => (type) => type;</script>\n\n    <script type=\"module\" src=\"/@vite/client\"></script>\n\n    <meta charset=\"UTF-8\" />\n    <link rel=\"icon\" type=\"image/svg+xml\" href=\"/vite.svg\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>cyberaid</title>\n  </head>\n  <body>\n    <div id=\"root\"></div>\n    <script type=\"module\" src=\"/src/main.tsx\"></script>\n  </body>\n</html>\n",
+            "evidenceSnippet": null
+          },
+          "sensitiveData": [],
+          "startedAt": "2026-10-08T22:53:19.030Z",
+          "finishedAt": "2026-10-08T22:53:19.033Z",
+          "evidence": [
+            {
+              "id": "ev-18b11436fc79",
+              "type": "request",
+              "timestamp": "2026-10-08T22:53:19.030Z",
+              "source": "runtime-generic",
+              "content": "GET http://localhost:5173/?name=%3Cscript%3Ealert%281%29%3C%2Fscript%3E"
+            },
+            {
+              "id": "ev-d6f0bf672716",
+              "type": "log",
+              "timestamp": "2026-10-08T22:53:19.033Z",
+              "source": "route-discovery",
+              "content": "Selected route: {\"method\":\"GET\",\"url\":\"http://localhost:5173/\",\"source\":\"root\",\"parameters\":[]}"
+            }
+          ]
+        },
+        {
+          "id": "atk-f83ce378e75c",
+          "findingId": "runtime-cmdi",
+          "tool": "runtime-generic",
+          "attackType": "cmdi",
+          "target": "http://localhost:5173/",
+          "status": "inconclusive",
+          "payload": "localhost;whoami",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:5173/?host=localhost%3Bwhoami",
+            "parameter": "host"
+          },
+          "response": {
+            "statusCode": 200,
+            "contentType": "text/html",
+            "bodyLength": 612,
+            "bodyPreview": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refresh\";\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () => {};\nwindow.$RefreshSig$ = () => (type) => type;</script>\n\n    <script type=\"module\" src=\"/@vite/client\"></script>\n\n    <meta charset=\"UTF-8\" />\n    <link rel=\"icon\" type=\"image/svg+xml\" href=\"/vite.svg\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>cyberaid</title>\n  </head>\n  <body>\n    <div id=\"root\"></div>\n    <script type=\"module\" src=\"/src/main.tsx\"></script>\n  </body>\n</html>\n",
+            "evidenceSnippet": null
+          },
+          "sensitiveData": [],
+          "startedAt": "2026-10-08T22:53:19.033Z",
+          "finishedAt": "2026-10-08T22:53:19.035Z",
+          "evidence": [
+            {
+              "id": "ev-18b11436fc79",
+              "type": "request",
+              "timestamp": "2026-10-08T22:53:19.033Z",
+              "source": "runtime-generic",
+              "content": "GET http://localhost:5173/?host=localhost%3Bwhoami"
+            },
+            {
+              "id": "ev-d6f0bf672716",
+              "type": "log",
+              "timestamp": "2026-10-08T22:53:19.035Z",
+              "source": "route-discovery",
+              "content": "Selected route: {\"method\":\"GET\",\"url\":\"http://localhost:5173/\",\"source\":\"root\",\"parameters\":[]}"
+            }
+          ]
+        },
+        {
+          "id": "atk-f3e6d1d39c94",
+          "findingId": "runtime-path-traversal",
+          "tool": "runtime-generic",
+          "attackType": "path_traversal",
+          "target": "http://localhost:5173/",
+          "status": "inconclusive",
+          "payload": "../secret.txt",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:5173/?file=..%2Fsecret.txt",
+            "parameter": "file"
+          },
+          "response": {
+            "statusCode": 200,
+            "contentType": "text/html",
+            "bodyLength": 612,
+            "bodyPreview": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refresh\";\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () => {};\nwindow.$RefreshSig$ = () => (type) => type;</script>\n\n    <script type=\"module\" src=\"/@vite/client\"></script>\n\n    <meta charset=\"UTF-8\" />\n    <link rel=\"icon\" type=\"image/svg+xml\" href=\"/vite.svg\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>cyberaid</title>\n  </head>\n  <body>\n    <div id=\"root\"></div>\n    <script type=\"module\" src=\"/src/main.tsx\"></script>\n  </body>\n</html>\n",
+            "evidenceSnippet": null
+          },
+          "sensitiveData": [],
+          "startedAt": "2026-10-08T22:53:19.035Z",
+          "finishedAt": "2026-10-08T22:53:19.037Z",
+          "evidence": [
+            {
+              "id": "ev-18b11436fc79",
+              "type": "request",
+              "timestamp": "2026-10-08T22:53:19.035Z",
+              "source": "runtime-generic",
+              "content": "GET http://localhost:5173/?file=..%2Fsecret.txt"
+            },
+            {
+              "id": "ev-d6f0bf672716",
+              "type": "log",
+              "timestamp": "2026-10-08T22:53:19.037Z",
+              "source": "route-discovery",
+              "content": "Selected route: {\"method\":\"GET\",\"url\":\"http://localhost:5173/\",\"source\":\"root\",\"parameters\":[]}"
+            }
+          ]
+        },
+        {
+          "id": "atk-7f240dd53117",
+          "findingId": "runtime-auth-bypass",
+          "tool": "runtime-generic",
+          "attackType": "auth_bypass",
+          "target": "http://localhost:5173/",
+          "status": "success",
+          "payload": "Unauthenticated GET /admin",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:5173/"
+          },
+          "response": {
+            "statusCode": 200,
+            "contentType": "text/html",
+            "bodyLength": 612,
+            "bodyPreview": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refresh\";\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () => {};\nwindow.$RefreshSig$ = () => (type) => type;</script>\n\n    <script type=\"module\" src=\"/@vite/client\"></script>\n\n    <meta charset=\"UTF-8\" />\n    <link rel=\"icon\" type=\"image/svg+xml\" href=\"/vite.svg\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>cyberaid</title>\n  </head>\n  <body>\n    <div id=\"root\"></div>\n    <script type=\"module\" src=\"/src/main.tsx\"></script>\n  </body>\n</html>\n",
+            "evidenceSnippet": null
+          },
+          "sensitiveData": [],
+          "startedAt": "2026-10-08T22:53:19.037Z",
+          "finishedAt": "2026-10-08T22:53:19.040Z",
+          "evidence": [
+            {
+              "id": "ev-18b11436fc79",
+              "type": "request",
+              "timestamp": "2026-10-08T22:53:19.037Z",
+              "source": "runtime-generic",
+              "content": "GET http://localhost:5173/"
+            },
+            {
+              "id": "ev-d6f0bf672716",
+              "type": "log",
+              "timestamp": "2026-10-08T22:53:19.040Z",
+              "source": "route-discovery",
+              "content": "Selected route: {\"method\":\"GET\",\"url\":\"http://localhost:5173/\",\"source\":\"root\",\"parameters\":[]}"
+            },
+            {
+              "id": "ev-06d95a04edcd",
+              "type": "finding",
+              "timestamp": "2026-10-08T22:53:19.040Z",
+              "source": "runtime-generic",
+              "content": "Runtime behavior matched the expected vulnerability signal."
+            }
+          ]
+        },
+        {
+          "id": "atk-648c24e322d9",
+          "findingId": "runtime-code-injection",
+          "tool": "runtime-generic",
+          "attackType": "code_injection",
+          "target": "http://localhost:5173/",
+          "status": "inconclusive",
+          "payload": "process.env",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:5173/?code=process.env",
+            "parameter": "code"
+          },
+          "response": {
+            "statusCode": 200,
+            "contentType": "text/html",
+            "bodyLength": 612,
+            "bodyPreview": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refresh\";\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () => {};\nwindow.$RefreshSig$ = () => (type) => type;</script>\n\n    <script type=\"module\" src=\"/@vite/client\"></script>\n\n    <meta charset=\"UTF-8\" />\n    <link rel=\"icon\" type=\"image/svg+xml\" href=\"/vite.svg\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>cyberaid</title>\n  </head>\n  <body>\n    <div id=\"root\"></div>\n    <script type=\"module\" src=\"/src/main.tsx\"></script>\n  </body>\n</html>\n",
+            "evidenceSnippet": null
+          },
+          "sensitiveData": [],
+          "startedAt": "2026-10-08T22:53:19.040Z",
+          "finishedAt": "2026-10-08T22:53:19.043Z",
+          "evidence": [
+            {
+              "id": "ev-18b11436fc79",
+              "type": "request",
+              "timestamp": "2026-10-08T22:53:19.040Z",
+              "source": "runtime-generic",
+              "content": "GET http://localhost:5173/?code=process.env"
+            },
+            {
+              "id": "ev-d6f0bf672716",
+              "type": "log",
+              "timestamp": "2026-10-08T22:53:19.043Z",
+              "source": "route-discovery",
+              "content": "Selected route: {\"method\":\"GET\",\"url\":\"http://localhost:5173/\",\"source\":\"root\",\"parameters\":[]}"
+            }
+          ]
+        }
+      ],
+      "validations": [
+        {
+          "findingId": "finding-1",
+          "source": "static",
+          "attackType": null,
+          "result": "not_reproduced",
+          "confidence": 70,
+          "rationale": "No runtime attack produced evidence for this finding.",
+          "attackId": null
+        },
+        {
+          "findingId": "finding-1",
+          "source": "static",
+          "attackType": null,
+          "result": "not_reproduced",
+          "confidence": 70,
+          "rationale": "No runtime attack produced evidence for this finding.",
+          "attackId": null
+        },
+        {
+          "findingId": "runtime-sqli",
+          "source": "runtime",
+          "attackType": "sqli",
+          "result": "inconclusive",
+          "confidence": 50,
+          "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+          "attackId": "atk-789b1af87b11"
+        },
+        {
+          "findingId": "runtime-xss",
+          "source": "runtime",
+          "attackType": "xss",
+          "result": "inconclusive",
+          "confidence": 50,
+          "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+          "attackId": "atk-fd48b8dcc16c"
+        },
+        {
+          "findingId": "runtime-cmdi",
+          "source": "runtime",
+          "attackType": "cmdi",
+          "result": "inconclusive",
+          "confidence": 50,
+          "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+          "attackId": "atk-f83ce378e75c"
+        },
+        {
+          "findingId": "runtime-path-traversal",
+          "source": "runtime",
+          "attackType": "path_traversal",
+          "result": "inconclusive",
+          "confidence": 50,
+          "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+          "attackId": "atk-f3e6d1d39c94"
+        },
+        {
+          "findingId": "runtime-auth-bypass",
+          "source": "runtime",
+          "attackType": "auth_bypass",
+          "result": "inconclusive",
+          "confidence": 45,
+          "rationale": "The tested route returned successfully, but it was not identified as a protected resource, so authentication bypass cannot be confirmed.",
+          "attackId": "atk-7f240dd53117"
+        },
+        {
+          "findingId": "runtime-code-injection",
+          "source": "runtime",
+          "attackType": "code_injection",
+          "result": "inconclusive",
+          "confidence": 50,
+          "rationale": "The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.",
+          "attackId": "atk-648c24e322d9"
+        }
+      ]
+    },
+    "exposures": [],
+    "events": [
+      {
+        "id": "evt-1e5ab361a895",
+        "step": 1,
+        "timestamp": "2026-10-08T22:53:18.759Z",
+        "stage": "initialization",
+        "status": "started",
+        "description": "Initializing controlled validation against the local project runtime."
+      },
+      {
+        "id": "evt-c641ed5bbe1b",
+        "step": 2,
+        "timestamp": "2026-10-08T22:53:18.770Z",
+        "stage": "initialization",
+        "status": "success",
+        "description": "Docker 29.8.2 is available."
+      },
+      {
+        "id": "evt-5cadd834b4a0",
+        "step": 3,
+        "timestamp": "2026-10-08T22:53:18.791Z",
+        "stage": "initialization",
+        "status": "success",
+        "description": "Required sandbox images are available."
+      },
+      {
+        "id": "evt-ef131c37babe",
+        "step": 4,
+        "timestamp": "2026-10-08T22:53:18.819Z",
+        "stage": "network",
+        "status": "success",
+        "description": "Controlled bridge network created with local host access."
+      },
+      {
+        "id": "evt-4285995cfc2b",
+        "step": 5,
+        "timestamp": "2026-10-08T22:53:18.822Z",
+        "stage": "target",
+        "status": "success",
+        "description": "Local project runtime http://localhost:5173 is available through the temporary SentinelAI validation proxy."
+      },
+      {
+        "id": "evt-178716fbc344",
+        "step": 6,
+        "timestamp": "2026-10-08T22:53:18.822Z",
+        "stage": "attack",
+        "status": "success",
+        "description": "6 runtime validation plan(s) created."
+      },
+      {
+        "id": "evt-4448e0077ad6",
+        "step": 7,
+        "timestamp": "2026-10-08T22:53:19.125Z",
+        "stage": "attack",
+        "status": "success",
+        "description": "6 validation attack(s) completed."
+      },
+      {
+        "id": "evt-ec061ae3285d",
+        "step": 8,
+        "timestamp": "2026-10-08T22:53:19.125Z",
+        "stage": "evidence",
+        "status": "success",
+        "description": "Validation evidence normalized and verdicts generated."
+      }
+    ]
+  },
+  "exposures": []
+}

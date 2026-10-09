@@ -263,12 +263,18 @@ async function runSandbox(
     !Array.isArray(
       findings
     )
-  ) {
+    
+  ) 
+  {
     throw new Error(
       'Sandbox findings must be an array.'
     );
   }
-
+const runtimeFindings =
+  mode ===
+    'simulation'
+    ? []
+    : findings;
   if (
     mode !== 'simulation' &&
     mode !== 'project-validation'
@@ -417,16 +423,16 @@ async function runSandbox(
       mode ===
       'simulation'
     ) {
-      const categories =
-        createCategories(
-          findings
-        );
+const categories =
+  createCategories(
+    runtimeFindings
+  );
 
-      const targetCode =
-        generateTargetApplication(
-          findings,
-          categories
-        );
+    const targetCode =
+      generateTargetApplication(
+        runtimeFindings,
+        categories
+      );
 
       const targetName =
         `sentinelai-target-${sandboxId}`;
@@ -531,7 +537,7 @@ async function runSandbox(
 
     const plans =
       createAttackPlan(
-        findings,
+        runtimeFindings,
         attackTargetUrl
       );
 
@@ -554,19 +560,19 @@ async function runSandbox(
 
     const attackExecution =
       await Promise.race([
-        runAttacks({
-          networkName:
-            network.name,
-          containerName:
-            `sentinelai-attacker-${sandboxId}`,
-          findings,
-          plans,
-          targetUrl:
-            attackTargetUrl,
-          projectValidation:
-            mode ===
-            'project-validation',
-        }),
+runAttacks({
+  networkName:
+    network.name,
+  containerName:
+    `sentinelai-attacker-${sandboxId}`,
+  findings,
+  plans,
+  targetUrl:
+    attackTargetUrl,
+  projectValidation:
+    mode ===
+    'project-validation',
+}),
 
         new Promise(
           (
@@ -624,11 +630,11 @@ async function runSandbox(
       `${attacks.length} validation attack(s) completed.`
     );
 
-    const validations =
-      validateAttacks(
-        findings,
-        attacks
-      );
+const validations =
+  validateAttacks(
+    runtimeFindings,
+    attacks
+  );  
 
     createEvent(
       events,
@@ -672,20 +678,21 @@ async function runSandbox(
         );
     }
 
-    const report =
-      buildReport({
-        sandboxId,
-        mode,
-        startedAt,
-        finishedAt,
-        target:
-          reportTarget,
-        containers,
-        events,
-        attacks,
-        validations,
-        findings,
-      });
+const report =
+  buildReport({
+    sandboxId,
+    mode,
+    startedAt,
+    finishedAt,
+    target:
+      reportTarget,
+    containers,
+    events,
+    attacks,
+    validations,
+    findings:
+      runtimeFindings,
+  });
 
 if (
   mode ===
