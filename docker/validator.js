@@ -1,8 +1,33 @@
 'use strict';
 
+const VALID_VERDICTS =
+  new Set([
+    'confirmed',
+    'observed_exposure',
+    'not_reproduced',
+    'inconclusive',
+    'failed',
+    'not_applicable',
+  ]);
+
+function asArray(value) {
+  return Array.isArray(value)
+    ? value
+    : [];
+}
+
 function attackSource(
   attack
 ) {
+  if (
+    attack?.source ===
+      'runtime' ||
+    attack?.source ===
+      'correlated'
+  ) {
+    return attack.source;
+  }
+
   return String(
     attack?.findingId ||
     ''
@@ -13,220 +38,306 @@ function attackSource(
     : 'correlated';
 }
 
-function routeLooksProtected(
+function runtimeVerdict(
   attack
 ) {
   if (
-    attack?.attackType !==
-    'auth_bypass'
-  ) {
-    return true;
-  }
-
-  const requestUrl =
-    attack?.request?.url;
-
-  if (
-    !requestUrl
-  ) {
-    return false;
-  }
-
-  let pathname;
-
-  try {
-    pathname =
-      new URL(
-        requestUrl
-      ).pathname.toLowerCase();
-  } catch {
-    return false;
-  }
-
-  if (
-    pathname === '/' ||
-    pathname === ''
-  ) {
-    return false;
-  }
-
-  const protectedKeywords = [
-    '/admin',
-    '/dashboard',
-    '/account',
-    '/profile',
-    '/manage',
-    '/management',
-    '/settings',
-    '/private',
-    '/secure',
-    '/internal',
-    '/users',
-    '/user/',
-  ];
-
-  return protectedKeywords.some(
-    keyword =>
-      pathname.includes(
-        keyword
-      )
-  );
-}
-
-function attackConfirmed(
-  attack
-) {
-  if (
-    attack?.status !==
-    'success'
-  ) {
-    return false;
-  }
-
-  if (
-    attack.attackType ===
-    'auth_bypass'
-  ) {
-    return routeLooksProtected(
-      attack
-    );
-  }
-
-  return true;
-}
-
-function resultFromAttack(
-  attack
-) {
-  if (
-    attackConfirmed(
-      attack
+    VALID_VERDICTS.has(
+      attack?.runtimeVerdict
     )
   ) {
-    return {
-      findingId:
-        attack.findingId ||
-        null,
-      source:
-        attackSource(
-          attack
-        ),
-      attackType:
-        attack.attackType,
-      result:
-        'confirmed',
-      confidence:
-        95,
-      rationale:
-        'Runtime testing reproduced behavior matching the vulnerability signal.',
-      attackId:
-        attack.id,
-    };
+    return attack.runtimeVerdict;
   }
 
   if (
     attack?.status ===
-      'success' &&
-    attack?.attackType ===
-      'auth_bypass'
+    'success'
   ) {
-    return {
-      findingId:
-        attack.findingId ||
-        null,
-      source:
-        attackSource(
-          attack
-        ),
-      attackType:
-        attack.attackType,
-      result:
-        'inconclusive',
-      confidence:
-        45,
-      rationale:
-        'The tested route returned successfully, but it was not identified as a protected resource, so authentication bypass cannot be confirmed.',
-      attackId:
-        attack.id,
-    };
+    return 'confirmed';
   }
 
   if (
     attack?.status ===
     'failed'
   ) {
-    return {
-      findingId:
-        attack.findingId ||
-        null,
-      source:
-        attackSource(
-          attack
-        ),
-      attackType:
-        attack.attackType,
-      result:
-        'inconclusive',
-      confidence:
-        40,
-      rationale:
-        'The runtime test failed before sufficient evidence was produced.',
-      attackId:
-        attack.id,
-    };
+    return 'failed';
   }
 
+  return 'inconclusive';
+}
+
+function defaultConfidence(
+  verdict
+) {
+  switch (verdict) {
+    case 'confirmed':
+      return 95;
+
+    case 'observed_exposure':
+      return 85;
+
+    case 'not_reproduced':
+      return 70;
+
+    case 'not_applicable':
+    case 'failed':
+      return 100;
+
+    default:
+      return 50;
+  }
+}
+
+function defaultRationale(
+  verdict
+) {
+  switch (verdict) {
+    case 'confirmed':
+      return (
+        'Runtime evidence reproduced the supported vulnerability signal.'
+      );
+
+    case 'observed_exposure':
+      return (
+        'Runtime analysis observed a security-relevant exposure.'
+      );
+
+    case 'not_reproduced':
+      return (
+        'The runtime check executed but did not reproduce the supported security signal.'
+      );
+
+    case 'not_applicable':
+      return (
+        'The runtime check was not applicable with the currently available application context.'
+      );
+
+    case 'failed':
+      return (
+        'The runtime check failed before a security conclusion could be reached.'
+      );
+
+    default:
+      return (
+        'The runtime evidence was insufficient for a conclusive verdict.'
+      );
+  }
+}
+
+function validationFromAttack(
+  attack
+) {
+  const verdict =
+    runtimeVerdict(
+      attack
+    );
+
   return {
+    id:
+      `validation-${
+        attack.id ||
+        Math.random()
+          .toString(16)
+          .slice(2)
+      }`,
+
     findingId:
-      attack?.findingId ||
+      attack.findingId ||
       null,
+
+    attackId:
+      attack.id ||
+      null,
+
     source:
       attackSource(
         attack
       ),
+
     attackType:
-      attack?.attackType ||
+      attack.attackType ||
       null,
+
+    attackFamily:
+      attack.attackFamily ||
+      null,
+
+    attackName:
+      attack.attackName ||
+      attack.attackType ||
+      null,
+
+    verdict,
+
+    /*
+     * Existing report/UI compatibility.
+     */
     result:
-      'inconclusive',
+      verdict,
+
     confidence:
-      50,
+      Number.isFinite(
+        attack.confidence
+      )
+        ? attack.confidence
+        : defaultConfidence(
+            verdict
+          ),
+
     rationale:
-      'The runtime test completed but did not produce sufficient evidence to confirm the vulnerability.',
-    attackId:
-      attack?.id ||
+      attack.rationale ||
+      defaultRationale(
+        verdict
+      ),
+
+    evidence:
+      asArray(
+        attack.evidence
+      ),
+
+    request:
+      attack.request ||
+      null,
+
+    response:
+      attack.response ||
+      null,
+
+    payload:
+      attack.payload ??
+      null,
+
+    executed:
+      attack.executed !==
+      false,
+
+    startedAt:
+      attack.startedAt ||
+      null,
+
+    finishedAt:
+      attack.finishedAt ||
       null,
   };
 }
 
-function createExposureValidation(
-  attack,
-  exposure,
-  index
+function priority(
+  verdict
 ) {
+  switch (verdict) {
+    case 'confirmed':
+      return 6;
+
+    case 'observed_exposure':
+      return 5;
+
+    case 'inconclusive':
+      return 4;
+
+    case 'failed':
+      return 3;
+
+    case 'not_reproduced':
+      return 2;
+
+    case 'not_applicable':
+      return 1;
+
+    default:
+      return 0;
+  }
+}
+
+function strongestAttack(
+  attacks
+) {
+  return (
+    asArray(attacks)
+      .slice()
+      .sort(
+        (
+          a,
+          b
+        ) =>
+          priority(
+            runtimeVerdict(b)
+          ) -
+          priority(
+            runtimeVerdict(a)
+          )
+      )[0] ||
+    null
+  );
+}
+
+function validationForFinding(
+  finding,
+  relatedAttacks
+) {
+  if (
+    relatedAttacks.length ===
+    0
+  ) {
+    return {
+      id:
+        `validation-${
+          finding.id
+        }`,
+
+      findingId:
+        finding.id,
+
+      attackId:
+        null,
+
+      source:
+        'correlated',
+
+      attackType:
+        finding.attackType ||
+        finding.type ||
+        null,
+
+      verdict:
+        'inconclusive',
+
+      result:
+        'inconclusive',
+
+      confidence:
+        35,
+
+      rationale:
+        'No applicable runtime probe was executed for this source finding.',
+
+      evidence:
+        [],
+    };
+  }
+
+  const attack =
+    strongestAttack(
+      relatedAttacks
+    );
+
+  const validation =
+    validationFromAttack(
+      attack
+    );
+
   return {
+    ...validation,
+
+    id:
+      `validation-${
+        finding.id
+      }`,
+
     findingId:
-      `runtime-exposure-${index}`,
+      finding.id,
+
     source:
-      'runtime',
-    attackType:
-      'data_exposure',
-    result:
-      'observed_exposure',
-    confidence:
-      90,
-    rationale:
-      `${exposure.dataType} was observed in the runtime response. The stored evidence has been redacted.`,
-    attackId:
-      attack.id,
-    exposure: {
-      category:
-        exposure.category,
-      dataType:
-        exposure.dataType,
-      maskedValue:
-        exposure.maskedValue,
-    },
+      'correlated',
   };
 }
 
@@ -235,22 +346,14 @@ function validateAttacks(
   attacks
 ) {
   const safeFindings =
-    Array.isArray(
-      findings
-    )
-      ? findings
-      : [];
+    asArray(findings);
 
   const safeAttacks =
-    Array.isArray(
-      attacks
-    )
-      ? attacks
-      : [];
+    asArray(attacks);
 
   const validations = [];
 
-  const processedAttacks =
+  const consumed =
     new Set();
 
   for (
@@ -264,177 +367,42 @@ function validateAttacks(
           finding.id
       );
 
-    const confirmed =
-      related.find(
-        attack =>
-          attackConfirmed(
-            attack
-          )
-      );
-
-    if (
-      confirmed
-    ) {
-      validations.push({
-        findingId:
-          finding.id,
-        source:
-          'correlated',
-        attackType:
-          confirmed.attackType,
-        result:
-          'confirmed',
-        confidence:
-          95,
-        rationale:
-          'Controlled runtime validation reproduced the vulnerable behaviour.',
-        attackId:
-          confirmed.id,
-      });
-
-      processedAttacks.add(
-        confirmed.id
-      );
-
-      continue;
-    }
-
-    const failed =
-      related.find(
-        attack =>
-          attack.status ===
-          'failed'
-      );
-
-    if (
-      failed
-    ) {
-      validations.push({
-        findingId:
-          finding.id,
-        source:
-          'correlated',
-        attackType:
-          failed.attackType,
-        result:
-          'inconclusive',
-        confidence:
-          40,
-        rationale:
-          'The runtime validator failed before producing sufficient evidence.',
-        attackId:
-          failed.id,
-      });
-
-      processedAttacks.add(
-        failed.id
-      );
-
-      continue;
-    }
-
-    if (
-      related.length > 0
-    ) {
-      const attack =
-        related[0];
-
-      const validation =
-        resultFromAttack(
-          attack
-        );
-
-      validations.push({
-        ...validation,
-        findingId:
-          finding.id,
-        source:
-          'correlated',
-        result:
-          validation.result ===
-          'confirmed'
-            ? 'confirmed'
-            : 'not_reproduced',
-        confidence:
-          validation.result ===
-          'confirmed'
-            ? validation.confidence
-            : 70,
-        rationale:
-          validation.result ===
-          'confirmed'
-            ? validation.rationale
-            : 'The controlled runtime test did not reproduce the vulnerable behaviour.',
-      });
-
-      processedAttacks.add(
-        attack.id
-      );
-    } else {
-      validations.push({
-        findingId:
-          finding.id,
-        source:
-          'static',
-        attackType:
-          null,
-        result:
-          'not_reproduced',
-        confidence:
-          70,
-        rationale:
-          'No runtime attack produced evidence for this finding.',
-        attackId:
-          null,
-      });
-    }
-  }
-
-  for (
-    const attack of
-      safeAttacks
-  ) {
-    if (
-      !processedAttacks.has(
-        attack.id
+    validations.push(
+      validationForFinding(
+        finding,
+        related
       )
-    ) {
-      validations.push(
-        resultFromAttack(
-          attack
-        )
-      );
-    }
-  }
-
-  let exposureIndex = 1;
-
-  for (
-    const attack of
-      safeAttacks
-  ) {
-    const exposures =
-      Array.isArray(
-        attack.sensitiveData
-      )
-        ? attack.sensitiveData
-        : [];
+    );
 
     for (
-      const exposure of
-        exposures
+      const attack of related
     ) {
-      validations.push(
-        createExposureValidation(
-          attack,
-          exposure,
-          exposureIndex
-        )
-      );
-
-      exposureIndex +=
-        1;
+      if (attack.id) {
+        consumed.add(
+          attack.id
+        );
+      }
     }
+  }
+
+  for (
+    const attack of
+      safeAttacks
+  ) {
+    if (
+      attack.id &&
+      consumed.has(
+        attack.id
+      )
+    ) {
+      continue;
+    }
+
+    validations.push(
+      validationFromAttack(
+        attack
+      )
+    );
   }
 
   return validations;
