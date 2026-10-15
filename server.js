@@ -28,14 +28,33 @@ const {
     cleanupExpiredReports,
 } = require('./docker/report-writer');
 
-const { MODEL } = require('./llm/ollama');
+const mailRoutes =
+    require('./mail/mail-routes');
 
-const app = express();
+const {
+    MODEL,
+} = require('./llm/ollama');
 
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+const app =
+    express();
 
-const PORT = 3000;
+app.use(
+    cors()
+);
+
+app.use(
+    express.json({
+        limit: '50mb',
+    })
+);
+
+app.use(
+    '/api/mail',
+    mailRoutes
+);
+
+const PORT =
+    3000;
 
 const REPORT_CLEANUP_INTERVAL_MS =
     60 * 60 * 1000;
@@ -49,8 +68,12 @@ const REPORTS_DIR =
 const OLLAMA_TAGS_URL =
     'http://localhost:11434/api/tags';
 
-function validateSandboxTarget(targetUrl) {
-    if (!targetUrl) {
+function validateSandboxTarget(
+    targetUrl
+) {
+    if (
+        !targetUrl
+    ) {
         throw new Error(
             'Project validation requires a targetUrl.'
         );
@@ -59,7 +82,10 @@ function validateSandboxTarget(targetUrl) {
     let parsed;
 
     try {
-        parsed = new URL(targetUrl);
+        parsed =
+            new URL(
+                targetUrl
+            );
     } catch {
         throw new Error(
             'Invalid targetUrl.'
@@ -67,8 +93,10 @@ function validateSandboxTarget(targetUrl) {
     }
 
     if (
-        parsed.protocol !== 'http:' &&
-        parsed.protocol !== 'https:'
+        parsed.protocol !==
+            'http:' &&
+        parsed.protocol !==
+            'https:'
     ) {
         throw new Error(
             'Project validation only supports HTTP or HTTPS.'
@@ -78,7 +106,7 @@ function validateSandboxTarget(targetUrl) {
     const allowedHosts = [
         'localhost',
         '127.0.0.1',
-        '::1'
+        '::1',
     ];
 
     if (
@@ -94,7 +122,9 @@ function validateSandboxTarget(targetUrl) {
     return parsed.toString();
 }
 
-function getErrorMessage(error) {
+function getErrorMessage(
+    error
+) {
     if (
         error.response &&
         error.response.data
@@ -106,7 +136,12 @@ function getErrorMessage(error) {
         );
     }
 
-    return error.message || String(error);
+    return (
+        error.message ||
+        String(
+            error
+        )
+    );
 }
 
 async function cleanupLocalReports() {
@@ -117,56 +152,79 @@ async function cleanupLocalReports() {
             );
 
         if (
-            result.deleted > 0
+            result.deleted >
+            0
         ) {
             console.log(
                 `[reports] Deleted ${result.deleted} expired report file(s).`
             );
         }
-    } catch (error) {
+    } catch (
+        error
+    ) {
         console.error(
             '[reports] Cleanup failed:',
-            getErrorMessage(error)
+            getErrorMessage(
+                error
+            )
         );
     }
 }
 
 app.get(
     '/runtime/discover',
-    async (_req, res) => {
+    async (
+        _req,
+        res
+    ) => {
         try {
             const runtimes =
                 await discoverRuntimes();
 
-            res.json({
+            return res.json({
                 ok: true,
                 runtimes,
             });
-        } catch (error) {
-            res.status(500).json({
-                ok: false,
-                error:
-                    error instanceof Error
-                        ? error.message
-                        : String(error),
-            });
+        } catch (
+            error
+        ) {
+            return res
+                .status(500)
+                .json({
+                    ok: false,
+
+                    error:
+                        error instanceof Error
+                            ? error.message
+                            : String(
+                                  error
+                              ),
+                });
         }
     }
 );
 
 app.post(
     '/runtime/check',
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
         try {
             const targetUrl =
                 req.body?.targetUrl;
 
-            if (!targetUrl) {
-                return res.status(400).json({
-                    ok: false,
-                    error:
-                        'targetUrl is required.',
-                });
+            if (
+                !targetUrl
+            ) {
+                return res
+                    .status(400)
+                    .json({
+                        ok: false,
+
+                        error:
+                            'targetUrl is required.',
+                    });
             }
 
             const result =
@@ -178,65 +236,105 @@ app.post(
                 ok: true,
                 ...result,
             });
-        } catch (error) {
-            return res.status(400).json({
-                ok: false,
-                error:
-                    error instanceof Error
-                        ? error.message
-                        : String(error),
-            });
+        } catch (
+            error
+        ) {
+            return res
+                .status(400)
+                .json({
+                    ok: false,
+
+                    error:
+                        error instanceof Error
+                            ? error.message
+                            : String(
+                                  error
+                              ),
+                });
         }
     }
 );
 
 app.get(
     '/health',
-    async (_req, res) => {
+    async (
+        _req,
+        res
+    ) => {
         const llmEnabled =
             String(
-                process.env.LLM_ENABLED || 'false'
-            ).toLowerCase() === 'true';
+                process.env
+                    .LLM_ENABLED ||
+                    'false'
+            ).toLowerCase() ===
+            'true';
 
-        if (!llmEnabled) {
+        if (
+            !llmEnabled
+        ) {
             return res.json({
-                status: 'ok',
-                model: MODEL,
-                ollama: 'disabled',
+                status:
+                    'ok',
+
+                model:
+                    MODEL,
+
+                ollama:
+                    'disabled',
             });
         }
 
         try {
             await axios.get(
                 OLLAMA_TAGS_URL,
-                { timeout: 5000 }
+                {
+                    timeout:
+                        5000,
+                }
             );
 
             return res.json({
-                status: 'ok',
-                model: MODEL,
-                ollama: 'connected',
+                status:
+                    'ok',
+
+                model:
+                    MODEL,
+
+                ollama:
+                    'connected',
             });
         } catch {
-            return res.status(503).json({
-                status: 'error',
-                model: MODEL,
-                ollama: 'disconnected',
-            });
+            return res
+                .status(503)
+                .json({
+                    status:
+                        'error',
+
+                    model:
+                        MODEL,
+
+                    ollama:
+                        'disconnected',
+                });
         }
     }
 );
 
 app.post(
     '/analyze-project',
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
         console.log(
             '[server] Starting security scan...'
         );
 
         try {
             const files =
-                Array.isArray(req.body?.files)
+                Array.isArray(
+                    req.body?.files
+                )
                     ? req.body.files
                     : [];
 
@@ -262,36 +360,54 @@ app.post(
             return res.json({
                 findings,
                 staticFindings,
-                filesScanned: files.length,
-                model: MODEL,
+
+                filesScanned:
+                    files.length,
+
+                model:
+                    MODEL,
             });
-        } catch (error) {
+        } catch (
+            error
+        ) {
             console.error(
                 '[server] Analysis failed:',
                 error
             );
 
-            return res.status(500).json({
-                error: 'Analysis failed',
-                detail: error.message,
-            });
+            return res
+                .status(500)
+                .json({
+                    error:
+                        'Analysis failed',
+
+                    detail:
+                        error.message,
+                });
         }
     }
 );
 
 app.post(
     '/sandbox/run',
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
         const findings =
             req.body?.findings;
 
         if (
-            !Array.isArray(findings)
+            !Array.isArray(
+                findings
+            )
         ) {
-            return res.status(400).json({
-                error:
-                    'Findings must be an array.',
-            });
+            return res
+                .status(400)
+                .json({
+                    error:
+                        'Findings must be an array.',
+                });
         }
 
         const mode =
@@ -324,6 +440,7 @@ app.post(
                 await runSandbox({
                     findings,
                     mode,
+
                     targetUrl:
                         validatedTargetUrl,
                 });
@@ -331,32 +448,47 @@ app.post(
             return res.json(
                 report
             );
-        } catch (error) {
+        } catch (
+            error
+        ) {
             console.error(
                 '[sandbox] Error:',
-                getErrorMessage(error)
+                getErrorMessage(
+                    error
+                )
             );
 
-            return res.status(400).json({
-                error:
-                    getErrorMessage(error),
-            });
+            return res
+                .status(400)
+                .json({
+                    error:
+                        getErrorMessage(
+                            error
+                        ),
+                });
         }
     }
 );
 
 app.post(
     '/sandbox/stop',
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
         try {
             const sandboxId =
                 req.body?.sandboxId;
 
-            if (!sandboxId) {
-                return res.status(400).json({
-                    error:
-                        'sandboxId is required.',
-                });
+            if (
+                !sandboxId
+            ) {
+                return res
+                    .status(400)
+                    .json({
+                        error:
+                            'sandboxId is required.',
+                    });
             }
 
             const result =
@@ -364,29 +496,48 @@ app.post(
                     sandboxId
                 );
 
-            return res.json(result);
-        } catch (error) {
-            return res.status(500).json({
-                error:
-                    getErrorMessage(error),
-            });
+            return res.json(
+                result
+            );
+        } catch (
+            error
+        ) {
+            return res
+                .status(500)
+                .json({
+                    error:
+                        getErrorMessage(
+                            error
+                        ),
+                });
         }
     }
 );
 
 app.get(
     '/sandbox/check',
-    async (_req, res) => {
+    async (
+        _req,
+        res
+    ) => {
         try {
             const result =
                 await checkDocker();
 
-            return res.json(result);
-        } catch (error) {
-            return res.status(503).json({
-                error:
-                    getErrorMessage(error),
-            });
+            return res.json(
+                result
+            );
+        } catch (
+            error
+        ) {
+            return res
+                .status(503)
+                .json({
+                    error:
+                        getErrorMessage(
+                            error
+                        ),
+                });
         }
     }
 );
@@ -405,8 +556,11 @@ app.listen(
         console.log(
             `[server] LLM: ${
                 String(
-                    process.env.LLM_ENABLED || 'false'
-                ).toLowerCase() === 'true'
+                    process.env
+                        .LLM_ENABLED ||
+                        'false'
+                ).toLowerCase() ===
+                'true'
                     ? 'enabled'
                     : 'disabled'
             }`
