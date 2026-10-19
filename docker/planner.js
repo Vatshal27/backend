@@ -29,7 +29,7 @@ function normalizeTargetUrl(
 function createRuntimeCatalogPlans(
   targetUrl
 ) {
-  return getAttackCatalog().map(
+  return getAttackCatalog().filter(attack => attack.id !== 'sensitive_data').map(
     attack => ({
       findingId:
         `runtime-${attack.id}`,
@@ -67,6 +67,8 @@ function createFindingPlans(
         ? findings
         : []
   ) {
+    if (finding?.source === 'supplementary' && finding?.check === 'secrets') continue;
+
     const attackType =
       classifyFinding(
         finding

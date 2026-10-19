@@ -16,6 +16,26 @@ function asArray(value) {
     : [];
 }
 
+function provenanceFor(attack = {}, mode = null) {
+  const synthetic = mode === 'simulation' || attack.synthetic === true ||
+    attack.simulation === true || attack.provenance?.synthetic === true ||
+    attack.mode === 'simulation' || attack.provenance?.mode === 'simulation';
+  return {
+    mode: synthetic ? 'simulation' : (mode || attack.provenance?.mode || attack.mode || 'unknown'),
+    synthetic,
+    source: synthetic ? 'controlled-fixture' : 'runtime-probe',
+  };
+}
+
+function executionState(attack = {}) {
+  if (attack.status === 'failed' || attack.runtimeVerdict === 'failed') return 'failed';
+  if (attack.executed === false || attack.execution === 'skipped') return 'skipped';
+  if (attack.execution === 'executed') return 'executed';
+  if (Number.isInteger(attack.response?.statusCode) && attack.response.statusCode >= 100 &&
+      attack.response.statusCode <= 599) return 'executed';
+  return 'unknown';
+}
+
 function attackSource(
   attack
 ) {
@@ -41,6 +61,16 @@ function attackSource(
 function runtimeVerdict(
   attack
 ) {
+  if (['confirmed', 'observed_exposure', 'not_reproduced'].includes(attack?.runtimeVerdict)) {
+    const hasResponse = Number.isInteger(attack?.response?.statusCode) &&
+      attack.response.statusCode >= 100 && attack.response.statusCode <= 599;
+    const hasEvidence = asArray(attack.evidence).some(item =>
+      item && ['response', 'finding', 'log'].includes(item.type) &&
+      typeof item.content === 'string' && item.content.trim());
+    if (attack.executed === false || !hasResponse || !hasEvidence || attack.status === 'failed') {
+      return attack.status === 'failed' ? 'failed' : 'inconclusive';
+    }
+  }
   if (
     VALID_VERDICTS.has(
       attack?.runtimeVerdict
@@ -49,12 +79,6 @@ function runtimeVerdict(
     return attack.runtimeVerdict;
   }
 
-  if (
-    attack?.status ===
-    'success'
-  ) {
-    return 'confirmed';
-  }
 
   if (
     attack?.status ===
@@ -132,7 +156,13 @@ function validationFromAttack(
       attack
     );
 
+  const provenance = provenanceFor(attack);
+  const execution = executionState(attack);
+
   return {
+    provenance,
+    execution,
+    projectConfirmed: verdict === 'confirmed' && !provenance.synthetic && provenance.mode === 'project-validation',
     id:
       `validation-${
         attack.id ||
@@ -207,9 +237,7 @@ function validationFromAttack(
       attack.payload ??
       null,
 
-    executed:
-      attack.executed !==
-      false,
+    executed: execution === 'executed',
 
     startedAt:
       attack.startedAt ||
@@ -410,4 +438,6 @@ function validateAttacks(
 
 module.exports = {
   validateAttacks,
+  provenanceFor,
+  executionState,
 };

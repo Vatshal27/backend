@@ -1,0 +1,13 @@
+{
+  "packages": {
+    "venv": {
+      "environment": "/home/vatshal-mehta/Vatshal/backend/.hermes/installs/c4ec70db1ecc963a/environments/69583a033d854e4bba4591287d6a258b/venv",
+      "extras": [
+        "all"
+      ],
+      "resolved_lock": "/home/vatshal-mehta/Vatshal/backend/.hermes/installs/c4ec70db1ecc963a/environments/69583a033d854e4bba4591287d6a258b/workspace/uv.lock",
+      "stamp": "7092f7866251fa58bb73c636ec1dcb4ef7b8d6f776f1da5d2f7f1749be619e70"
+    }
+  },
+  "schema": 1
+}

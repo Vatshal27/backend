@@ -388,7 +388,7 @@ function buildScannerCommand(
 
         'rm -f /tmp/semgrep.json',
 
-        'semgrep --config auto /workspace --json --no-git-ignore > /tmp/semgrep.json 2>/tmp/semgrep-error.log || true',
+        'semgrep --config auto /workspace --json --no-git-ignore > /tmp/semgrep.json 2>/tmp/semgrep-error.log; printf "%s" "$?" > /tmp/semgrep-exit-code',
 
         'if [ ! -s /tmp/semgrep.json ]; then',
         '  printf \'{"results":[]}\' > /tmp/semgrep.json',
@@ -398,7 +398,7 @@ function buildScannerCommand(
 
         'rm -f /tmp/bandit.json',
 
-        'bandit -r /workspace -f json -o /tmp/bandit.json 2>/tmp/bandit-error.log || true',
+        'bandit -r /workspace -f json -o /tmp/bandit.json 2>/tmp/bandit-error.log; printf "%s" "$?" > /tmp/bandit-exit-code',
 
         'if [ ! -s /tmp/bandit.json ]; then',
         '  printf \'{"results":[]}\' > /tmp/bandit.json',
@@ -406,7 +406,7 @@ function buildScannerCommand(
 
         'printf "__SENTINEL_RESULT_START__\\n"',
 
-        `python3 -c 'import json; s=json.load(open("/tmp/semgrep.json")); b=json.load(open("/tmp/bandit.json")); print(json.dumps({"semgrep": s.get("results", []), "bandit": b.get("results", []), "filesScanned": ${Number(fileCount)}}))'`,
+        `python3 -c 'import json, os; s=json.load(open("/tmp/semgrep.json")); b=json.load(open("/tmp/bandit.json")); sc=int(open("/tmp/semgrep-exit-code").read()) if os.path.exists("/tmp/semgrep-exit-code") else 127; bc=int(open("/tmp/bandit-exit-code").read()) if os.path.exists("/tmp/bandit-exit-code") else 127; tools={"semgrep":{"status":"complete" if sc in (0,1) else "failed","exitCode":sc},"bandit":{"status":"complete" if bc in (0,1) else "failed","exitCode":bc}}; overall="complete" if all(t["status"]=="complete" for t in tools.values()) else "inconclusive"; print(json.dumps({"semgrep":s.get("results",[]),"bandit":b.get("results",[]),"filesScanned":${Number(fileCount)},"coverage":{"status":overall,"tools":tools}}))'`,
 
         'printf "__SENTINEL_RESULT_END__\\n"',
     ].join('\n');
@@ -613,6 +613,10 @@ function extractScannerResult(
             bandit:
                 result.bandit,
 
+            coverage: result.coverage && typeof result.coverage === 'object'
+                ? result.coverage
+                : { status: 'unknown', reason: 'Scanner did not report per-tool execution coverage.' },
+
             filesScanned:
                 Number(
                     result.filesScanned ||
@@ -630,22 +634,13 @@ function extractScannerResult(
             jsonText.length
         );
 
-        console.error(
-            '[docker-scanner] JSON start:',
-            JSON.stringify(
-                jsonText.slice(
-                    0,
-                    300
-                )
-            )
-        );
-
         return null;
     }
 }
 
 async function runScannersInContainer(
-    files
+    files,
+    { signal, onEvent } = {}
 ) {
     const exists =
         await imageExists(
@@ -666,19 +661,23 @@ async function runScannersInContainer(
             )
         );
 
-    writeScanFiles(
-        files,
-        scanDirectory
-    );
-
-    makeScanFilesReadable(
-        scanDirectory
-    );
-
     let container;
     let timeoutHandle;
+    let rejectAbort;
+    const abortPromise = new Promise((_, reject) => { rejectAbort = reject; });
+    // Cancellation may arrive while Docker is creating the container.
+    abortPromise.catch(() => {});
+    const onAbort = () => {
+        const error = new Error('Static scan cancelled.');
+        error.name = 'AbortError';
+        rejectAbort(error);
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+    if (signal?.aborted) onAbort();
 
     try {
+        writeScanFiles(files, scanDirectory);
+        makeScanFilesReadable(scanDirectory);
         container =
             await docker.createContainer({
                 Image:
@@ -730,7 +729,9 @@ async function runScannersInContainer(
                 },
             });
 
+        if (signal?.aborted) await abortPromise;
         await container.start();
+        if (signal?.aborted) await abortPromise;
 
         const timeoutPromise =
             new Promise(
@@ -756,6 +757,7 @@ async function runScannersInContainer(
             await Promise.race([
                 container.wait(),
                 timeoutPromise,
+                abortPromise,
             ]);
 
         if (
@@ -775,10 +777,6 @@ async function runScannersInContainer(
                 stderr: true,
             });
 
-        const decodedLogs =
-            decodeDockerLogs(
-                rawLogs
-            );
 
         console.log(
             `[docker-scanner] Container exited with code ${waitResult.StatusCode}`
@@ -802,24 +800,9 @@ async function runScannersInContainer(
             return result;
         }
 
-        console.error(
-            '[docker-scanner] Scanner returned no valid result.'
-        );
-
-        console.error(
-            decodedLogs.slice(
-                0,
-                5000
-            )
-        );
-
-        return {
-            semgrep: [],
-            bandit: [],
-            filesScanned:
-                files.length,
-        };
+        throw new Error('Scanner returned no valid result.');
     } finally {
+        signal?.removeEventListener('abort', onAbort);
         if (
             timeoutHandle
         ) {
@@ -1426,8 +1409,14 @@ function deduplicateFindings(
 }
 
 async function runStaticAnalysis(
-    filesOrPath
+    filesOrPath,
+    { signal, onEvent } = {}
 ) {
+    if (signal?.aborted) {
+        const error = new Error('Static scan cancelled.');
+        error.name = 'AbortError';
+        throw error;
+    }
     if (
         !Array.isArray(
             filesOrPath
@@ -1453,13 +1442,18 @@ async function runStaticAnalysis(
             '[docker-scanner] No relevant source files to scan'
         );
 
-        return [];
+        return Object.assign([], { coverage: { status: 'skipped', reason: 'No relevant source files were submitted.', filesScanned: 0, tools: { semgrep: { status: 'not_run' }, bandit: { status: 'not_run' } } } });
     }
 
-    const raw =
-        await runScannersInContainer(
-            filteredFiles
-        );
+    let raw;
+    try {
+        raw = await runScannersInContainer(filteredFiles, { signal, onEvent });
+    } catch (error) {
+        if (typeof onEvent === 'function') {
+            try { onEvent({ stage: 'static', status: error.name === 'AbortError' ? 'cancelled' : 'failed' }); } catch {}
+        }
+        throw error;
+    }
 
     const semgrepFindings =
         normalizeSemgrepFindings(
@@ -1491,6 +1485,14 @@ async function runStaticAnalysis(
         `Bandit ${banditFindings.length})`
     );
 
+    Object.defineProperty(enrichedFindings, 'coverage', {
+        enumerable: false,
+        value: {
+            ...(raw.coverage || { status: 'unknown', reason: 'Scanner result did not include tool execution coverage.' }),
+            filesScanned: raw.filesScanned,
+            filesSubmitted: filteredFiles.length,
+        },
+    });
     return enrichedFindings;
 }
 
@@ -1498,4 +1500,6 @@ module.exports = {
     checkDocker,
     runStaticAnalysis,
     filterSourceFiles,
+    extractScannerResult,
+    buildScannerCommand,
 };

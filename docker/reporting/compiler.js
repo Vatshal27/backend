@@ -1,5 +1,8 @@
 'use strict';
 
+const { createCoverage } = require('../report');
+const { redact } = require('../../security/redact');
+
 function emptySummary() {
   return {
     findings: 0,
@@ -8,6 +11,11 @@ function emptySummary() {
     observedExposures: 0,
     inconclusive: 0,
     notReproduced: 0,
+    notApplicable: 0,
+    executed: 0,
+    skipped: 0,
+    unknown: 0,
+    observedSensitiveData: 0,
     runtimeTests: 0,
     runtimeFailed: 0,
     durationMs: null,
@@ -28,7 +36,7 @@ function createSelfTest(report) {
       reportId: null,
       startedAt: null,
       finishedAt: null,
-      summary: emptySummary(),
+      summary: { ...emptySummary(), executionState: 'not_run' },
       controlledFixtures: 0,
       detected: 0,
       coverage: {
@@ -53,7 +61,7 @@ function createSelfTest(report) {
     summary.runtimeTests || 0;
 
   const detected =
-    summary.confirmed || 0;
+    summary.syntheticConfirmed || 0;
 
   return {
     executed: true,
@@ -63,7 +71,7 @@ function createSelfTest(report) {
       report.startedAt || null,
     finishedAt:
       report.finishedAt || null,
-    summary,
+    summary: { ...summary, executionState: 'completed' },
     controlledFixtures:
       total,
     detected,
@@ -91,8 +99,9 @@ function createProjectValidation(report) {
       reportId: null,
       startedAt: null,
       finishedAt: null,
-      summary: emptySummary(),
+      summary: { ...emptySummary(), executionState: 'not_run' },
       target: null,
+      coverage: createCoverage(),
       runtime: {
         attacks: [],
         validations: [],
@@ -104,16 +113,15 @@ function createProjectValidation(report) {
 
   return {
     executed: true,
+    coverage: report.coverage || createCoverage(),
+    provenance: report.provenance || null,
     reportId:
       report.sandboxId || null,
     startedAt:
       report.startedAt || null,
     finishedAt:
       report.finishedAt || null,
-    summary:
-      normalizeSummary(
-        report.summary
-      ),
+    summary: { ...normalizeSummary(report.summary), executionState: 'completed' },
     target:
       report.target || null,
     runtime: {
@@ -213,7 +221,7 @@ const aiFindings =
     ? projectReport
         .aiFindings
     : [];
-  return {
+  return redact({
     schemaVersion: '1.1',
     reportType:
       'SentinelAI Security Report',
@@ -243,6 +251,8 @@ const aiFindings =
       null,
     summary:
       projectValidation.summary,
+    coverage: projectValidation.coverage,
+    provenance: { mode: 'compiled', project: projectValidation.provenance || null, selfTestSynthetic: true },
     findings: {
       all:
         allFindings,
@@ -256,7 +266,7 @@ const aiFindings =
     projectValidation,
     exposures:
       projectValidation.exposures,
-  };
+  });
 }
 
 module.exports = {

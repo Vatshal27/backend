@@ -1,5 +1,24 @@
 'use strict';
 
+const { validateAttacks, provenanceFor, executionState } = require('./validator');
+const { redact } = require('../security/redact');
+
+function createCoverage(attacks = []) {
+  const coverage = { total: attacks.length, planned: attacks.length, executed: 0, skipped: 0, failed: 0,
+    unknown: 0, notApplicable: 0, synthetic: 0, projectExecuted: 0, scope: 'recorded-probes' };
+  for (const attack of attacks) {
+    const state = executionState(attack);
+    if (state === 'failed') coverage.failed += 1;
+    else if (state === 'skipped') coverage.skipped += 1;
+    else if (state === 'unknown') coverage.unknown += 1;
+    else coverage.executed += 1;
+    if (attack.runtimeVerdict === 'not_applicable' || attack.notApplicable === true) coverage.notApplicable++;
+    if (attack.provenance?.synthetic || attack.synthetic) coverage.synthetic += 1;
+    else if (state === 'executed' && attack.provenance?.mode === 'project-validation') coverage.projectExecuted += 1;
+  }
+  return coverage;
+}
+
 function createContainers(
   containers = {}
 ) {
@@ -125,6 +144,9 @@ function createExposures(
         maskedValue:
           item.maskedValue ||
           '[REDACTED]',
+        valueLength: item.valueLength || null,
+        location: item.location || null,
+        fieldPath: item.fieldPath || null,
         verdict:
           'observed_exposure',
       });
@@ -173,8 +195,7 @@ function createSummary(
   const confirmed =
     safeValidations.filter(
       item =>
-        item?.result ===
-        'confirmed'
+        item?.projectConfirmed === true
     ).length;
 
   const inconclusive =
@@ -191,8 +212,8 @@ function createSummary(
         'not_reproduced'
     ).length;
 
-  const observedExposures =
-    safeExposures.length;
+  const observedExposures = safeValidations.filter(item => item?.result === 'observed_exposure').length;
+  const observedSensitiveData = safeExposures.length;
 
   const runtimeFailed =
     safeAttacks.filter(
@@ -200,6 +221,10 @@ function createSummary(
         item?.status ===
         'failed'
     ).length;
+
+  const notApplicable = safeValidations.filter(item => item?.result === 'not_applicable').length;
+  const executedCount = safeAttacks.filter(item => executionState(item) === 'executed').length;
+  const skippedCount = safeAttacks.filter(item => executionState(item) === 'skipped').length;
 
   const startTime =
     startedAt
@@ -230,14 +255,20 @@ function createSummary(
     findings:
       safeFindings.length,
     tested:
-      safeAttacks.length,
+      executedCount,
     confirmed,
+    syntheticConfirmed: safeValidations.filter(item => item.result === 'confirmed' && item.provenance?.synthetic).length,
     observedExposures,
+    observedSensitiveData,
     inconclusive,
     notReproduced,
     runtimeTests:
-      safeAttacks.length,
+      executedCount,
     runtimeFailed,
+    notApplicable,
+    executed: executedCount,
+    skipped: skippedCount,
+    unknown: safeAttacks.filter(item => executionState(item) === 'unknown').length,
     durationMs,
   };
 }
@@ -273,15 +304,14 @@ function buildReport({
     Array.isArray(
       attacks
     )
-      ? attacks
+      ? attacks.map(attack => ({ ...attack, provenance: provenanceFor(attack, mode) }))
       : [];
 
-  const safeValidations =
-    Array.isArray(
-      validations
-    )
-      ? validations
-      : [];
+  // Re-derive verdicts from probes instead of trusting caller-supplied summaries.
+  const safeValidations = validateAttacks(safeFindings, safeAttacks).map((validation, index) => ({
+    ...validation,
+    execution: safeAttacks[index] ? executionState(safeAttacks[index]) : 'unknown',
+  }));
 
   const {
     staticFindings,
@@ -306,9 +336,11 @@ function buildReport({
       finishedAt
     );
 
-  return {
+  return redact({
     schemaVersion:
       '1.1',
+    provenance: provenanceFor({}, mode),
+    coverage: createCoverage(safeAttacks),
     sandboxId,
     mode,
     startedAt,
@@ -332,8 +364,7 @@ function buildReport({
       confirmedVulnerabilities:
         safeValidations.filter(
           item =>
-            item?.result ===
-            'confirmed'
+            item?.projectConfirmed === true
         ),
       observedExposures:
         exposures,
@@ -357,10 +388,11 @@ function buildReport({
     validations:
       safeValidations,
     summary,
-  };
+  });
 }
 
 module.exports = {
+  createCoverage,
   buildReport,
   createSummary,
   createExposures,

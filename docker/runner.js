@@ -59,7 +59,7 @@ const SAFE_SIMULATION_CONCURRENCY =
 const PROJECT_VALIDATION_CONCURRENCY =
   4;
 
-// These families require trusted project-specific context before generic Project Validation can execute them safely.
+// Families needing identity/ownership semantics stay disabled without explicit trusted test context.
 const PROJECT_CONTEXT_REQUIRED =
   new Set([
     'xxe',
@@ -78,6 +78,8 @@ const PROJECT_CONTEXT_REQUIRED =
     'graphql_security',
     'request_smuggling',
     'cache_poisoning',
+    'auth_bypass',
+    'cookie_security',
   ]);
 
 function createId(
@@ -2661,8 +2663,11 @@ function evaluateAttack(
       }
     );
 
+  const { normalizeEvidence } = require('./evidence');
+  const [safeAttack] = normalizeEvidence([attack]);
+
   return {
-    ...attack,
+    ...safeAttack,
 
     status:
       legacyStatus(
@@ -2785,4 +2790,5 @@ async function runAttacks({
 module.exports = {
   runAttacks,
   createAttacker,
+  prepareProject,
 };

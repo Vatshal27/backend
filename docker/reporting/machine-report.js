@@ -1,5 +1,7 @@
 'use strict';
 
+const { redact } = require('../../security/redact');
+
 const {
   getReportTimes,
 } = require(
@@ -119,7 +121,7 @@ function createMachineReport(
       report
     );
 
-  return {
+  return redact({
     schemaVersion:
       report.schemaVersion ||
       '1.1',
@@ -181,7 +183,7 @@ function createMachineReport(
       )
         ? report.exposures
         : [],
-  };
+  });
 }
 
 module.exports = {

@@ -1,5 +1,8 @@
 'use strict';
 
+const nodemailer =
+  require('nodemailer');
+
 const {
   getMailConfig,
 } = require('./mail-config');
@@ -7,12 +10,6 @@ const {
 function buildFromAddress(
   config
 ) {
-  if (
-    !config.user
-  ) {
-    return '';
-  }
-
   return `${config.fromName} <${config.user}>`;
 }
 
@@ -65,6 +62,29 @@ function validateMailConfig(
   return errors;
 }
 
+function createTransporter(
+  config
+) {
+  return nodemailer.createTransport({
+    host:
+      config.host,
+
+    port:
+      config.port,
+
+    secure:
+      config.secure,
+
+    auth: {
+      user:
+        config.user,
+
+      pass:
+        config.password,
+    },
+  });
+}
+
 function getMailStatus() {
   const config =
     getMailConfig();
@@ -115,6 +135,83 @@ function getMailStatus() {
   };
 }
 
+async function verifyMailConnection() {
+  const config =
+    getMailConfig();
+
+  if (
+    !config.enabled
+  ) {
+    return {
+      connected:
+        false,
+
+      skipped:
+        true,
+
+      reason:
+        'Mail delivery is disabled.',
+    };
+  }
+
+  const errors =
+    validateMailConfig(
+      config
+    );
+
+  if (
+    errors.length >
+    0
+  ) {
+    return {
+      connected:
+        false,
+
+      skipped:
+        false,
+
+      errors,
+    };
+  }
+
+  const transporter =
+    createTransporter(
+      config
+    );
+
+  try {
+    await transporter.verify();
+
+    return {
+      connected:
+        true,
+
+      skipped:
+        false,
+
+      sender:
+        config.user,
+    };
+  } catch (
+    error
+  ) {
+    return {
+      connected:
+        false,
+
+      skipped:
+        false,
+
+      error:
+        error instanceof Error
+          ? error.message
+          : String(
+              error
+            ),
+    };
+  }
+}
+
 async function sendMail(
   message = {}
 ) {
@@ -156,40 +253,110 @@ async function sendMail(
     };
   }
 
-  return {
-    sent:
-      false,
+  const transporter =
+    createTransporter(
+      config
+    );
 
-    skipped:
-      true,
+  const mailOptions = {
+    from:
+      buildFromAddress(
+        config
+      ),
 
-    reason:
-      'SMTP transport is not enabled yet.',
+    to:
+      config.to.join(
+        ', '
+      ),
 
-    preview: {
-      from:
-        buildFromAddress(
-          config
-        ),
+    subject:
+      message.subject ||
+      'SentinelAI Security Report',
 
-      to:
-        config.to,
+    text:
+      message.text ||
+      '',
 
-      cc:
-        config.cc,
+    html:
+      message.html ||
+      undefined,
 
-      bcc:
-        config.bcc,
-
-      subject:
-        message.subject ||
-        'SentinelAI Report',
-    },
+    attachments:
+      Array.isArray(
+        message.attachments
+      )
+        ? message.attachments
+        : [],
   };
+
+  if (
+    config.cc.length >
+    0
+  ) {
+    mailOptions.cc =
+      config.cc.join(
+        ', '
+      );
+  }
+
+  if (
+    config.bcc.length >
+    0
+  ) {
+    mailOptions.bcc =
+      config.bcc.join(
+        ', '
+      );
+  }
+
+  try {
+    const info =
+      await transporter.sendMail(
+        mailOptions
+      );
+
+    return {
+      sent:
+        true,
+
+      skipped:
+        false,
+
+      messageId:
+        info.messageId,
+
+      accepted:
+        info.accepted || [],
+
+      rejected:
+        info.rejected || [],
+
+      response:
+        info.response || null,
+    };
+  } catch (
+    error
+  ) {
+    return {
+      sent:
+        false,
+
+      skipped:
+        false,
+
+      error:
+        error instanceof Error
+          ? error.message
+          : String(
+              error
+            ),
+    };
+  }
 }
 
 module.exports = {
   getMailStatus,
+  verifyMailConnection,
   sendMail,
   validateMailConfig,
 };

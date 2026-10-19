@@ -1,5 +1,7 @@
 'use strict';
 
+const { redact } = require('../../security/redact');
+
 const { getReportTimes } = require('./time');
 const {
   clean,
@@ -397,6 +399,7 @@ function renderExecution(lines, title, events) {
 }
 
 function renderMarkdownReport(report) {
+  report = redact(report);
   const {
     generatedLocal,
     expiresLocal,

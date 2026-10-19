@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test tests/*.test.js",
     "start": "node server.js",
     "scanner:check": "node -e \"require('./docker-scanner').checkDocker().then(r=>console.log(r)).catch(e=>console.error(e))\""
   },
@@ -17,6 +17,7 @@
     "cors": "^2.8.6",
     "dockerode": "^5.0.1",
     "express": "^5.2.1",
+    "nodemailer": "^10.1.2",
     "sqlite3": "^6.0.1"
   },
   "type": "commonjs",

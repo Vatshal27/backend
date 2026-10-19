@@ -1030,21 +1030,13 @@ function evaluateSensitiveData(
   const body =
     text(response?.body);
 
-  const patterns = [
-    /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
-    /\bBearer\s+[A-Za-z0-9._~+/=-]{16,}/i,
-    /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/,
-    /\b(?:mongodb|postgres(?:ql)?|mysql):\/\/[^:\s]+:[^@\s]+@/i,
-  ];
-
-  if (
-    patterns.some(
-      pattern =>
-        pattern.test(body)
-    )
-  ) {
+  const baseline = baselineBody(context);
+  const { detectSensitiveData } = require('../evidence');
+  const baselineExposureKeys = new Set(detectSensitiveData(baseline).map(item => `${item.dataType}:${item.maskedValue}`));
+  const exposures = detectSensitiveData(body).filter(item => !baselineExposureKeys.has(`${item.dataType}:${item.maskedValue}`));
+  if (exposures.length) {
     return exposure(
-      'Sensitive-looking credential or key material was observed in the runtime response.'
+      `The runtime response exposed ${exposures.length} sensitive data item(s) not present in the baseline (${exposures.map(item => item.dataType).join(', ')}).`
     );
   }
 

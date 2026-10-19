@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const path = require('node:path');
+const { createLocalOnlyMiddleware } = require('./http/local-only');
 
 const {
     checkDocker,
@@ -19,7 +20,9 @@ const {
 const {
     runStaticAnalysis,
 } = require('./docker-scanner');
-
+const { createJobManager } = require('./jobs/manager');
+const { createSecurityRouter } = require('./jobs/routes');
+const { getScanProfiles, runSupplementaryChecks } = require('./security/profiles');
 const {
     analyzeFindings,
 } = require('./llm/analyzer');
@@ -38,13 +41,19 @@ const {
 const app =
     express();
 
-app.use(
-    cors()
-);
+app.use(createLocalOnlyMiddleware());
+
+app.use(cors({ origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    try {
+        const hostname = new URL(origin).hostname.toLowerCase();
+        return callback(null, ['localhost', '127.0.0.1', '[::1]', '::1'].includes(hostname));
+    } catch { return callback(null, false); }
+} }));
 
 app.use(
     express.json({
-        limit: '50mb',
+        limit: '5mb',
     })
 );
 
@@ -53,8 +62,77 @@ app.use(
     mailRoutes
 );
 
+const securityJobManager = createJobManager();
+app.use('/security', createSecurityRouter({
+    manager: securityJobManager,
+    capabilities: () => ({
+        profiles: getScanProfiles().map(profile => ({
+            id: profile.id, name: profile.name, supported: true,
+            checks: profile.checks,
+        })),
+        limitations: [
+            'Safe Simulation uses synthetic fixtures and never confirms a project vulnerability.',
+            'Authentication, API specification and real-browser checks are unsupported.',
+        ],
+    }),
+    execute: async (request, { signal, emit }) => {
+        emit({ stage: 'source-analysis', status: 'running', description: 'Running existing static source analysis.' });
+        const staticFindings = await runStaticAnalysis(
+            request.files.map(file => ({ path: file.path, code: file.content })),
+            { signal, onEvent: emit }
+        );
+        if (signal.aborted) throw signal.reason;
+        emit({ stage: 'profile-checks', status: 'running', description: `Running ${request.profile} profile checks.` });
+        const supplementary = await runSupplementaryChecks({
+            files: request.files, profile: request.profile, signal,
+            onEvent: event => emit({ stage: event.check || 'profile-checks', status: event.status, description: `${event.check || 'Check'}: ${event.status}.` }),
+            options: request.options,
+        });
+        const findings = [...staticFindings, ...supplementary.findings];
+        const sourceFileCount = request.files.filter(file => /\.(?:js|mjs|cjs|ts|py|go|php|java|rb|cs|cpp|c|rs|html|css|jsx|tsx|vue|svelte|sql|sh)$/i.test(file.path)).length;
+        const configuredLlmEnabled = String(process.env.LLM_ENABLED || 'false').toLowerCase() === 'true';
+        const llmEnabled = configuredLlmEnabled && request.profile !== 'dependencies' && request.profile !== 'infrastructure';
+        let analyzedFindings = findings;
+        let llmUsed = false;
+        let llmReason = !configuredLlmEnabled ? 'LLM analysis was disabled.'
+            : !llmEnabled ? 'LLM source review was skipped for this non-source profile.'
+                : 'LLM analysis was not executed.';
+        if (llmEnabled && sourceFileCount > 0) {
+            emit({ stage: 'llm-analysis', status: 'running', description: 'Running optional local LLM analysis.' });
+            try {
+                analyzedFindings = await analyzeFindings(findings, request.files.map(file => ({ path: file.path, code: file.content })));
+                llmUsed = true;
+                llmReason = 'Local LLM analysis completed.';
+            } catch (error) {
+                if (signal.aborted) throw signal.reason;
+                llmReason = 'Local LLM analysis failed; static/profile findings are preserved.';
+                emit({ stage: 'llm-analysis', status: 'failed', description: llmReason });
+            }
+        } else if (llmEnabled) {
+            llmReason = 'LLM analysis was enabled but skipped because no supported source files were supplied.';
+        }
+        const staticCoverage = staticFindings.coverage;
+        const coverage = [
+            { check: 'source', status: sourceFileCount === 0 ? 'skipped' : (staticCoverage?.status === 'complete' ? 'tested' : 'inconclusive'),
+                filesSubmitted: sourceFileCount,
+                filesScanned: staticCoverage?.filesScanned ?? 0,
+                reason: sourceFileCount === 0 ? 'No supported source files were submitted to the static scanner.'
+                    : (staticCoverage?.status === 'complete' ? 'Configured static scanners returned a result.' : (staticCoverage?.reason || 'Static scanner did not report complete per-tool coverage.')),
+                tools: staticCoverage?.tools || null },
+            ...supplementary.coverage.filter(item => item.check !== 'source'),
+        ];
+        return {
+            kind: 'scan', profile: request.profile, filesScanned: request.files.length,
+            findings: analyzedFindings, staticFindings,
+            llmFindings: llmUsed ? analyzedFindings.filter(finding => finding.source === 'ai') : [],
+            coverage, llmUsed, llmEnabled, llmReason,
+            provenance: { mode: 'workspace-source-analysis', synthetic: false, project: true },
+        };
+    },
+}));
+
 const PORT =
-    3000;
+    Number(process.env.PORT || 3000);
 
 const REPORT_CLEANUP_INTERVAL_MS =
     60 * 60 * 1000;
@@ -227,10 +305,8 @@ app.post(
                     });
             }
 
-            const result =
-                await checkRuntime(
-                    targetUrl
-                );
+            const validatedTargetUrl = validateSandboxTarget(targetUrl);
+            const result = await checkRuntime(validatedTargetUrl);
 
             return res.json({
                 ok: true,
@@ -542,8 +618,9 @@ app.get(
     }
 );
 
-app.listen(
+if (require.main === module) app.listen(
     PORT,
+    '127.0.0.1',
     () => {
         console.log(
             `[server] Running on http://localhost:${PORT}`
@@ -581,3 +658,5 @@ app.listen(
         );
     }
 );
+
+module.exports = { app, validateSandboxTarget };
