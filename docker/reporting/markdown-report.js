@@ -59,6 +59,9 @@ function renderProjectSummary(lines, summary, executed) {
   lines.push(`| Inconclusive | ${summary.inconclusive ?? 0} |`);
   lines.push(`| Not reproduced | ${summary.notReproduced ?? 0} |`);
   lines.push(`| Runtime tests | ${summary.runtimeTests ?? 0} |`);
+  lines.push(`| Planned probes | ${summary.plannedProbes ?? 0} |`);
+  lines.push(`| Skipped probes | ${summary.skippedProbes ?? 0} |`);
+  lines.push(`| Unknown probes | ${summary.unknownProbes ?? 0} |`);
   lines.push(`| Failed tests | ${summary.runtimeFailed ?? 0} |`);
   if (
     summary.durationMs !== null &&

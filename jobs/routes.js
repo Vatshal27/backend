@@ -78,6 +78,7 @@ function createSecurityRouter({ manager, capabilities, execute }) {
     if (!job) return res.status(404).json({ error: 'Job not found or expired.' });
     res.json({ job });
   });
+
   router.delete('/jobs/:id', (req, res) => {
     const job = manager.cancel(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found or expired.' });

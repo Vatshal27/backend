@@ -46,6 +46,7 @@ test('local-only middleware rejects non-loopback clients and hostile origins/hos
   assert.deepEqual((await capabilities.json()).profiles.map(profile => profile.id), ['source', 'dependencies', 'secrets', 'infrastructure', 'comprehensive']);
   assert.equal((await fetch(base, { headers: { Origin: 'https://evil.example' } })).status, 403);
   assert.equal((await fetch(base, { headers: { Origin: `http://localhost:${server.address().port}` } })).status, 403);
+  assert.equal((await fetch(base, { headers: { Host: '127.0.0.1:3000', Origin: 'http://127.0.0.1:3000' } })).status, 403);
   const middleware = createLocalOnlyMiddleware();
   for (const request of [
     { socket: { remoteAddress: '192.0.2.10' }, headers: { host: 'localhost:3000' } },

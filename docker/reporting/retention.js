@@ -15,6 +15,7 @@ const {
 } = require(
   './time'
 );
+const { getManagedReportFiles } = require('./writer');
 
 async function cleanupExpiredReports(
   reportsDir
@@ -37,8 +38,8 @@ async function cleanupExpiredReports(
     };
   }
 
-  const now =
-    Date.now();
+  const now = Date.now();
+  const managedReports = getManagedReportFiles();
 
   let deleted =
     0;
@@ -52,14 +53,7 @@ async function cleanupExpiredReports(
       continue;
     }
 
-    if (
-      !entry.name.endsWith(
-        '.md'
-      ) &&
-      !entry.name.endsWith(
-        '.json'
-      )
-    ) {
+    if (!managedReports.has(entry.name)) {
       continue;
     }
 

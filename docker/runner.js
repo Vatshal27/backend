@@ -79,7 +79,6 @@ const PROJECT_CONTEXT_REQUIRED =
     'request_smuggling',
     'cache_poisoning',
     'auth_bypass',
-    'cookie_security',
   ]);
 
 function createId(
@@ -1459,10 +1458,18 @@ function specialProjectRequest(
         parsed.search,
 
       headers: {
-        Origin:
-          TEST_ORIGIN,
+        Origin: TEST_ORIGIN,
       },
     };
+  }
+
+
+  if (['security_headers', 'debug_exposure', 'sensitive_data', 'directory_listing'].includes(plan.attackType)) {
+    return { method: 'GET', path: parsed.pathname + parsed.search, headers: {} };
+  }
+
+  if (plan.attackType === 'unsafe_http_methods') {
+    return { method: 'OPTIONS', path: parsed.pathname + parsed.search, headers: {} };
   }
 
   if (
@@ -1517,18 +1524,13 @@ function prepareProject(
       continue;
     }
 
-    if (
-      PROJECT_CONTEXT_REQUIRED.has(
-        plan.attackType
-      )
-    ) {
-      skipped.push(
-        notApplicableAttack(
-          plan,
-          `${definition.name} requires additional trusted application context before SentinelAI can test it safely against a project runtime.`
-        )
-      );
-
+    if (PROJECT_CONTEXT_REQUIRED.has(plan.attackType)) {
+      skipped.push(notApplicableAttack(plan,
+        `${definition.name} requires additional trusted application context before SentinelAI can test it safely against a project runtime.`));
+      continue;
+    }
+    if (['path_traversal', 'lfi'].includes(plan.attackType)) {
+      skipped.push(notApplicableAttack(plan, 'Requires a target-owned canary path explicitly supplied for this project; generic filesystem traversal probes are disabled.'));
       continue;
     }
 
@@ -1538,10 +1540,7 @@ function prepareProject(
         plan
       );
 
-    if (
-      definition.activeProbe ===
-      false
-    ) {
+    if (definition.activeProbe === false) {
       const route =
         rootRoute(
           routes
@@ -1607,22 +1606,8 @@ function prepareProject(
         route
       );
 
-    if (
-      special
-    ) {
-      prepared.push(
-        preparedAttack({
-          plan,
-          route,
-          request:
-            special,
-
-          baselineRequest:
-            buildBaselineRequest(
-              route
-            ),
-        })
-      );
+    if (special) {
+      prepared.push(preparedAttack({ plan, route, request: special, baselineRequest: buildBaselineRequest(route) }));
 
       continue;
     }
@@ -2229,6 +2214,7 @@ async function createAttacker({
   projectValidation = false,
 }) {
   const hostConfig = {
+    UsernsMode: 'private',
     AutoRemove:
       false,
 
@@ -2791,4 +2777,5 @@ module.exports = {
   runAttacks,
   createAttacker,
   prepareProject,
+  evaluateAttack,
 };

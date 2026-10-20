@@ -14,6 +14,7 @@ const {
 
 const {
   writeReportFiles,
+  getManagedReportFiles,
 } = require(
   './reporting/writer'
 );
@@ -28,5 +29,6 @@ module.exports = {
   renderMarkdownReport,
   createMachineReport,
   writeReportFiles,
+  getManagedReportFiles,
   cleanupExpiredReports,
 };

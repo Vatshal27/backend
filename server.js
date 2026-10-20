@@ -41,15 +41,21 @@ const {
 const app =
     express();
 
+const corsOptions = {
+    origin(origin, callback) {
+        if (!origin) return callback(null, true);
+        try {
+            const hostname = new URL(origin).hostname.toLowerCase();
+            return callback(null, ['localhost', '127.0.0.1', '[::1]', '::1'].includes(hostname));
+        } catch {
+            return callback(null, false);
+        }
+    },
+};
+
 app.use(createLocalOnlyMiddleware());
 
-app.use(cors({ origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    try {
-        const hostname = new URL(origin).hostname.toLowerCase();
-        return callback(null, ['localhost', '127.0.0.1', '[::1]', '::1'].includes(hostname));
-    } catch { return callback(null, false); }
-} }));
+app.use(cors(corsOptions));
 
 app.use(
     express.json({
@@ -75,7 +81,7 @@ app.use('/security', createSecurityRouter({
             'Authentication, API specification and real-browser checks are unsupported.',
         ],
     }),
-    execute: async (request, { signal, emit }) => {
+    execute: async (request, { signal, emit, checkpoint }) => {
         emit({ stage: 'source-analysis', status: 'running', description: 'Running existing static source analysis.' });
         const staticFindings = await runStaticAnalysis(
             request.files.map(file => ({ path: file.path, code: file.content })),
@@ -89,6 +95,16 @@ app.use('/security', createSecurityRouter({
             options: request.options,
         });
         const findings = [...staticFindings, ...supplementary.findings];
+        const checkpointBase = {
+            kind: 'scan', profile: request.profile, filesScanned: request.files.length,
+            findings, staticFindings,
+            coverage: [...(staticFindings.coverage ? [{ check: 'source', status: staticFindings.coverage.status,
+                filesScanned: staticFindings.coverage.filesScanned, reason: staticFindings.coverage.reason,
+                tools: staticFindings.coverage.tools }] : []), ...supplementary.coverage],
+            llmUsed: false, llmEnabled: false,
+            provenance: { mode: 'workspace-source-analysis', synthetic: false, project: true },
+        };
+        checkpoint(checkpointBase);
         const sourceFileCount = request.files.filter(file => /\.(?:js|mjs|cjs|ts|py|go|php|java|rb|cs|cpp|c|rs|html|css|jsx|tsx|vue|svelte|sql|sh)$/i.test(file.path)).length;
         const configuredLlmEnabled = String(process.env.LLM_ENABLED || 'false').toLowerCase() === 'true';
         const llmEnabled = configuredLlmEnabled && request.profile !== 'dependencies' && request.profile !== 'infrastructure';
@@ -98,6 +114,7 @@ app.use('/security', createSecurityRouter({
             : !llmEnabled ? 'LLM source review was skipped for this non-source profile.'
                 : 'LLM analysis was not executed.';
         if (llmEnabled && sourceFileCount > 0) {
+            checkpoint({ ...checkpointBase, llmEnabled: true, llmReason: 'Local LLM analysis is running.' });
             emit({ stage: 'llm-analysis', status: 'running', description: 'Running optional local LLM analysis.' });
             try {
                 analyzedFindings = await analyzeFindings(findings, request.files.map(file => ({ path: file.path, code: file.content })));
@@ -106,6 +123,7 @@ app.use('/security', createSecurityRouter({
             } catch (error) {
                 if (signal.aborted) throw signal.reason;
                 llmReason = 'Local LLM analysis failed; static/profile findings are preserved.';
+                checkpoint({ ...checkpointBase, llmEnabled: true, llmUsed: false, llmReason });
                 emit({ stage: 'llm-analysis', status: 'failed', description: llmReason });
             }
         } else if (llmEnabled) {
@@ -121,13 +139,15 @@ app.use('/security', createSecurityRouter({
                 tools: staticCoverage?.tools || null },
             ...supplementary.coverage.filter(item => item.check !== 'source'),
         ];
-        return {
+        const completedResult = {
             kind: 'scan', profile: request.profile, filesScanned: request.files.length,
             findings: analyzedFindings, staticFindings,
             llmFindings: llmUsed ? analyzedFindings.filter(finding => finding.source === 'ai') : [],
             coverage, llmUsed, llmEnabled, llmReason,
             provenance: { mode: 'workspace-source-analysis', synthetic: false, project: true },
         };
+        checkpoint(completedResult);
+        return completedResult;
     },
 }));
 
@@ -440,6 +460,8 @@ app.post(
                 filesScanned:
                     files.length,
 
+                scannerCoverage: staticFindings.coverage || { status: 'unknown', reason: 'Static scanner coverage was not reported.' },
+
                 model:
                     MODEL,
             });
@@ -532,6 +554,7 @@ app.post(
                 getErrorMessage(
                     error
                 )
+                
             );
 
             return res

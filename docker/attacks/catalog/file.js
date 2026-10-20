@@ -6,7 +6,7 @@ module.exports = [
     name: 'Path Traversal',
     family: 'file',
     enabled: true,
-    activeProbe: true,
+    activeProbe: false,
 
     aliases: [
       'path traversal',
@@ -43,13 +43,8 @@ module.exports = [
       'name',
     ],
 
-    /*
-     * Legacy synthetic fixture payload. Project evidence should
-     * only confirm when controlled evidence/canary is returned.
-     */
-    payloads: [
-      '../secret.txt',
-    ],
+    // Project Validation must use a target-owned canary and explicit opt-in.
+    payloads: [],
 
     validator: 'path_traversal',
   },
@@ -59,7 +54,7 @@ module.exports = [
     name: 'Local File Inclusion',
     family: 'file',
     enabled: true,
-    activeProbe: true,
+    activeProbe: false,
 
     aliases: [
       'local file inclusion',
@@ -95,9 +90,8 @@ module.exports = [
       'include',
     ],
 
-    payloads: [
-      'sentinelai-canary.txt',
-    ],
+    // Requires a target-owned canary and explicit runtime contract.
+    payloads: [],
 
     validator: 'lfi',
   },

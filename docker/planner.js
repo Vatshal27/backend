@@ -29,7 +29,7 @@ function normalizeTargetUrl(
 function createRuntimeCatalogPlans(
   targetUrl
 ) {
-  return getAttackCatalog().filter(attack => attack.id !== 'sensitive_data').map(
+  return getAttackCatalog().map(
     attack => ({
       findingId:
         `runtime-${attack.id}`,

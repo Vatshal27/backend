@@ -162,6 +162,10 @@ function routeIsApplicable(
     );
   }
 
+  if (['security_headers', 'debug_exposure', 'sensitive_data', 'unsafe_http_methods', 'directory_listing', 'cors'].includes(attackType)) {
+    return true;
+  }
+
   const hints =
     Array.isArray(
       definition.parameterHints

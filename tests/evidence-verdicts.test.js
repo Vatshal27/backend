@@ -47,9 +47,14 @@ test('simulation provenance separates scanner self-tests from project confirmati
   assert.equal(project.summary.skipped, 1);
   assert.equal(project.summary.observedExposures, 0);
   assert.equal(project.runtime.confirmedVulnerabilities.length, 1);
+  assert.deepEqual(project.coverage.byAttackType.find(row => row.attackType === 'sqli'), { attackType: 'sqli', planned: 2, executed: 2, skipped: 0, failed: 0, unknown: 0, notApplicable: 0 });
   assert.deepEqual(project.coverage, {
     total: 5, planned: 5, executed: 2, skipped: 1, failed: 1, unknown: 1, notApplicable: 1,
     synthetic: 1, projectExecuted: 1, scope: 'recorded-probes',
+    byAttackType: [
+      { attackType: 'sqli', planned: 2, executed: 2, skipped: 0, failed: 0, unknown: 0, notApplicable: 0 },
+      { attackType: 'unknown', planned: 3, executed: 0, skipped: 1, failed: 1, unknown: 1, notApplicable: 1 },
+    ],
   });
   const compiled = compileReports({ simulationReport: simulation, projectReport: project });
   assert.equal(compiled.summary.confirmed, 1);
@@ -80,4 +85,41 @@ test('generic project validation skips authentication bypass without verified id
   assert.equal(result.prepared.length, 0);
   assert.equal(result.skipped[0].runtimeVerdict, 'not_applicable');
   assert.match(result.skipped[0].rationale, /trusted application context/i);
+});
+
+test('generic Project Validation never sends traversal payloads without a target-owned canary contract', () => {
+  const { prepareProject } = require('../docker/runner');
+  for (const attackType of ['path_traversal', 'lfi']) {
+    const plan = { id: `runtime-${attackType}`, findingId: `runtime-${attackType}`, attackType, source: 'runtime' };
+    const result = prepareProject([], [plan], [{ method: 'GET', url: 'http://127.0.0.1:5000/files?file=report.txt', source: 'form', parameters: ['file'] }]);
+    assert.equal(result.prepared.length, 0, attackType);
+    assert.equal(result.skipped[0].runtimeVerdict, 'not_applicable');
+    assert.match(result.skipped[0].rationale, /target-owned canary/);
+  }
+});
+
+test('runtime report coverage is grouped by attack type with planned/executed/skipped counts', () => {
+  const { buildReport } = require('../docker/report');
+  const report = buildReport({ mode: 'project-validation', attacks: [
+    { id: 'headers-a', attackType: 'security_headers', executed: true, execution: 'executed', status: 'executed',
+      request: { method: 'GET', url: 'http://127.0.0.1/' }, response: { statusCode: 200, headers: {}, body: '' },
+      evidence: [{ type: 'response', content: 'headers inspected' }], runtimeVerdict: 'observed_exposure' },
+    { id: 'headers-b', attackType: 'security_headers', executed: false, execution: 'skipped', status: 'skipped', runtimeVerdict: 'not_applicable' },
+    { id: 'idor-a', attackType: 'idor', executed: false, execution: 'skipped', status: 'not_applicable', runtimeVerdict: 'not_applicable' },
+  ] });
+  assert.deepEqual(report.coverage.byAttackType, [
+    { attackType: 'security_headers', planned: 2, executed: 1, skipped: 1, failed: 0, unknown: 0, notApplicable: 1 },
+    { attackType: 'idor', planned: 1, executed: 0, skipped: 1, failed: 0, unknown: 0, notApplicable: 1 },
+  ]);
+});
+
+test('markdown runtime summary includes planned and skipped probe counts', () => {
+  const { renderMarkdownReport } = require('../docker/reporting/markdown-report');
+  const text = renderMarkdownReport({ mode: 'project-validation', summary: { confirmed: 0, observedExposures: 0, plannedProbes: 9, skippedProbes: 7, unknownProbes: 1 },
+    projectValidation: { executed: true, summary: { confirmed: 0, observedExposures: 0, plannedProbes: 9, skippedProbes: 7, unknownProbes: 1,
+      runtimeTests: 1, runtimeFailed: 0, inconclusive: 0, notReproduced: 0 }, coverage: { total: 9, planned: 9, executed: 1, skipped: 7, failed: 0, unknown: 1 },
+      runtime: { attacks: [], validations: [] }, findings: [], events: [] }, findings: { static: [], ai: [] }, events: [] });
+  assert.match(text, /Planned probes \| 9/);
+  assert.match(text, /Skipped probes \| 7/);
+  assert.match(text, /Unknown probes \| 1/);
 });

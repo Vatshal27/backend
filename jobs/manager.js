@@ -56,7 +56,14 @@ function createJobManager({ maxConcurrent = 1, maxJobs = 30, maxEvents = 200,
       timer.unref();
       job.promise = (async () => {
         try {
-          const result = await job.task({ signal: job.controller.signal, emit: event => emit(job, event) });
+          const result = await job.task({ signal: job.controller.signal, emit: event => emit(job, event),
+            checkpoint: value => {
+              if (terminal(job)) return null;
+              job.result = sanitize(value);
+              job.updatedAt = new Date().toISOString();
+              emit(job, { stage: 'result-checkpoint', status: 'running', description: 'Partial analysis checkpoint updated.' });
+              return snapshot(job);
+            } });
           if (job.controller.signal.aborted) throw job.controller.signal.reason;
           job.result = sanitize(result);
           job.status = 'completed';

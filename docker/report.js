@@ -6,6 +6,7 @@ const { redact } = require('../security/redact');
 function createCoverage(attacks = []) {
   const coverage = { total: attacks.length, planned: attacks.length, executed: 0, skipped: 0, failed: 0,
     unknown: 0, notApplicable: 0, synthetic: 0, projectExecuted: 0, scope: 'recorded-probes' };
+  const byAttackType = new Map();
   for (const attack of attacks) {
     const state = executionState(attack);
     if (state === 'failed') coverage.failed += 1;
@@ -15,7 +16,14 @@ function createCoverage(attacks = []) {
     if (attack.runtimeVerdict === 'not_applicable' || attack.notApplicable === true) coverage.notApplicable++;
     if (attack.provenance?.synthetic || attack.synthetic) coverage.synthetic += 1;
     else if (state === 'executed' && attack.provenance?.mode === 'project-validation') coverage.projectExecuted += 1;
+    const type = String(attack.attackType || 'unknown');
+    const row = byAttackType.get(type) || { attackType: type, planned: 0, executed: 0, skipped: 0, failed: 0, unknown: 0, notApplicable: 0 };
+    row.planned++;
+    row[state]++;
+    if (attack.runtimeVerdict === 'not_applicable' || attack.notApplicable === true) row.notApplicable++;
+    byAttackType.set(type, row);
   }
+  coverage.byAttackType = [...byAttackType.values()];
   return coverage;
 }
 

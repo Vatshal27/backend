@@ -1367,6 +1367,7 @@ async function createTarget(
       },
 
       HostConfig: {
+        UsernsMode: 'private',
         AutoRemove:
           false,
 

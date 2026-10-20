@@ -115,6 +115,7 @@ The backend API is intended for the local VS Code extension; do not expose it to
 - `GET /api/mail/status`, `POST /api/mail/test` — optional mail service; delivery is disabled unless configured.
 
 For details and limitations see [SECURITY-WORKBENCH.md](SECURITY-WORKBENCH.md).
+Project Validation's implemented checks and explicit coverage gaps are listed in [PROJECT-VALIDATION-COVERAGE.md](PROJECT-VALIDATION-COVERAGE.md).
 
 ### Configuration
 
@@ -127,7 +128,7 @@ Create a `.env` file in the backend directory:
 PORT=3000
 
 # Scanner configuration
-SENTINEL_SCANNER_IMAGE=sentinelai-scanner:latest
+SENTINEL_SCANNER_IMAGE=sentinelai-scanner@sha256:12409d64fc81b229982bdad27749a4f35013f975dcb88d96e561b421d7ccd212
 
 # LLM Configuration
 OLLAMA_HOST=http://localhost:11434
@@ -135,6 +136,8 @@ OLLAMA_MODEL=mistral
 
 # Optional OSV dependency lookup is separately consented in the UI per scan.
 ```
+
+The default scanner reference is pinned to the immutable digest verified in the local Docker daemon. To update it, inspect the replacement image and record its upstream source, tool versions, revision, SBOM/security review, and digest; run the scanner lifecycle tests and Docker lab against that exact digest; then update this example and `docker-scanner.js` together. Do not use mutable `latest` tags for reproducible runs.
 
 #### Workbench capabilities
 

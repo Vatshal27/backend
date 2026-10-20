@@ -2,32 +2,33 @@
 
 const { execFile } = require('child_process');
 const path = require('path');
-
 function runSemgrep(projectPath) {
     return new Promise((resolve, reject) => {
         const absolutePath = path.resolve(projectPath);
+        const configPath = path.resolve(__dirname, 'rules/javascript.yml');
 
         execFile(
             'semgrep',
             [
-                '--config', 'scanner/rules/javascript.yml',
+                '--config', configPath,
                 absolutePath,
                 '--json',
+                '--no-git-ignore',
             ],
             { maxBuffer: 1024 * 1024 * 20 },
             (error, stdout, stderr) => {
-                if (stderr) {
-                    console.log('[Semgrep warning]', stderr);
-                }
-
                 if (!stdout) {
-                    return reject(
-                        new Error('Semgrep returned no output')
-                    );
+                    return reject(new Error(`Semgrep returned no JSON output${stderr ? `: ${stderr.trim()}` : ''}`));
                 }
 
                 try {
                     const result = JSON.parse(stdout);
+                    if (result.errors?.length) {
+                        return reject(new Error(`Semgrep reported ${result.errors.length} scan error(s): ${result.errors.map(item => item.message).join('; ')}`));
+                    }
+                    if (error && error.code !== 1) {
+                        return reject(new Error(`Semgrep failed with exit code ${error.code}: ${stderr.trim()}`));
+                    }
 
                     console.log(
                         '[Semgrep raw findings]',
@@ -40,9 +41,7 @@ function runSemgrep(projectPath) {
 
                     resolve(findings);
                 } catch (parseError) {
-                    reject(
-                        new Error('Failed parsing Semgrep JSON output')
-                    );
+                    reject(new Error(`Failed parsing Semgrep JSON output: ${parseError.message}`));
                 }
             }
         );

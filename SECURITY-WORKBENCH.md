@@ -49,11 +49,11 @@ Coverage marks unsupported, skipped and inconclusive checks distinctly; empty fi
 
 Verification for this tranche: extension `npm test` PASS, 21/21; backend `npm test` PASS, 40 passed, 0 failed, 1 skipped; Docker paired SQL regression PASS, 1/1. The default backend suite skips its Docker-only test; explicit Docker result is above.
 
-Remaining readiness gaps: only npm advisory resolution; rule-based/heuristic source, secrets, and infrastructure checks; authentication/API/browser plus broken-access-control/path-traversal lab cases unsupported; no hosted auth/durable jobs/production operations validation; and no desktop VS Code end-to-end acceptance run. The LLM-enabled/Ollama execution path has not been exercised against a running model in this tranche.
+Remaining readiness gaps: only npm advisory resolution; rule-based/heuristic source, secrets, and infrastructure checks; authentication/API/browser plus broken-access-control/path-traversal cases unsupported; no hosted auth/durable jobs/production operations validation; and no full interactive desktop acceptance across scan, Safe Simulation, live Project Validation and persisted reports. The LLM-enabled/Ollama execution path has not been exercised against a running model in this tranche.
 
-## Verification report — 2026-10-18 13:54 IST
+## Historical verification report — 2026-10-18 (not current verification)
 
-Status: Workbench baseline below was verified on 2026-10-18. Follow-up sensitive-data exposure tests also pass (addendum below). A VS Code-host end-to-end session has not been run; do not treat this as full product acceptance.
+Status: The following entries are historical test records from 2026-10-18. They are not evidence of current checkout status. Current compatibility verification is tracked separately; no full interactive runtime workflow acceptance is claimed here.
 
 ### Work completed in this pass
 
@@ -136,12 +136,23 @@ No VS Code-host UI session or production deployment test was run. No legacy scan
 - Targeted extension test covers the renderer feature markers and checks no findings are interpolated into `innerHTML`.
 - A small labeled source-secret candidate corpus now covers one synthetic hardcoded candidate and two safe negatives. This is a narrow regression fixture, not an overall scanner precision/recall benchmark.
 
-Verification:
+Historical verification (2026-10-18; not a current test run):
 
 - Backend `npm test`: PASS, 29 passed, 0 failed, 1 skipped (the default suite skips the opt-in Docker lab).
 - Extension `npm test`: PASS, 7 passed, 0 failed; includes TypeScript compile and renderer-safe-output test.
-- Explicit `LAB_DOCKER_TESTS=1 node --test tests/lab.docker.test.js`: PASS, 1 passed, 0 failed.
+- Explicit Docker lab: the historical log recorded a pass, but the referenced `tests/lab.docker.test.js` is absent from the current checkout; this result is not reproducible here and must not be treated as current verification.
 - No VS Code-host UI execution was performed; the workbench was verified by compile and renderer/controller/API tests only.
 - Added a labelled source-secret candidate mini-corpus (synthetic vulnerable assignment, environment-variable fixed form, and placeholder/docs negatives). It verifies this heuristic check only; it is not a general scanner effectiveness/recall benchmark.
 - UI flow test evaluates the compiled webview script with an in-memory DOM/event harness; no desktop/extension-host VS Code end-to-end environment was available/run.
 - No legacy implementation was deleted. Existing mail, run.txt, .hermes and Markdown artifacts remain untouched. No commit/push.
+
+## Current readiness gaps (2026-10-21)
+
+- Local-first integration is implemented, but production hosting is not designed: no production authentication/authorization, TLS termination, abuse/rate controls, tenant isolation, or deployment security review. Keep the service bound to loopback.
+- Scan jobs are held in process memory and are lost on backend restart; durable queue/storage, restart recovery and retention/recovery guarantees are absent.
+- Current extension tests pass and the package was installed in Antigravity 1.107.0; the Antigravity Extension Host test exits 0. This is not a full manual UI acceptance for scanning a project and running Safe Simulation, authorized Project Validation, and verifying the generated reports. Codex-specific workflow remains unverified.
+- Project Validation is bounded to discovered routes and implemented passive/active probes. Authentication and role-aware IDOR/business-logic, browser execution, GraphQL/WebSocket, and safe canary-backed file/SSRF cases require additional context and remain unsupported/gated.
+- Static rules, Bandit/ESLint and optional local LLM are heuristic/advisory. There is no representative independently labeled benchmark with reproducible false-positive and missed-detection results.
+- Scanner image digest pinning aids repeatability but does not prove provenance. Add trusted image provenance/signature review and a documented digest refresh process.
+- Historical report files may contain raw runtime evidence from before redaction safeguards. Report retention, redaction and source-control policy still need a product decision; do not commit sensitive reports by default.
+- Backend `npm test` has not been rerun in the latest compatibility tranche. The documented Docker lab path is absent from this checkout; do not claim a current lab pass.

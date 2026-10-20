@@ -29,6 +29,26 @@ test('jobs execute serially and expose real ordered events without retaining inp
   await manager.close();
 });
 
+test('running jobs expose sanitized partial checkpoints and refuse updates after terminal state', async () => {
+  const manager = createJobManager({ sanitize: value => ({ ...value, sanitized: true }) });
+  let checkpoint;
+  const job = manager.submit('scan', async context => {
+    checkpoint = context.checkpoint;
+    context.checkpoint({ phase: 'static-complete', findings: [] });
+    await new Promise(resolve => setImmediate(resolve));
+    return { phase: 'done' };
+  });
+  await tick();
+  const running = manager.get(job.id);
+  assert.equal(running.status, 'running');
+  assert.equal(running.result.phase, 'static-complete');
+  assert.equal(running.result.sanitized, true);
+  await tick();
+  assert.equal(manager.get(job.id).status, 'completed');
+  assert.equal(checkpoint({ phase: 'late' }), null);
+  await manager.close();
+});
+
 test('cancelling queued jobs releases their queue entry immediately', async () => {
   const manager = createJobManager({ maxConcurrent: 1, maxJobs: 2, retentionMs: 0, sanitize: v => v });
   let release;

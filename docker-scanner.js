@@ -5,11 +5,12 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
+
 const docker = new Docker();
 
 const SCANNER_IMAGE =
     process.env.SENTINEL_SCANNER_IMAGE ||
-    'sentinelai-scanner:latest';
+    'sentinelai-scanner@sha256:12409d64fc81b229982bdad27749a4f35013f975dcb88d96e561b421d7ccd212';
 
 const CONTAINER_TIMEOUT =
     Number(
@@ -312,6 +313,12 @@ function writeScanFiles(
 function makeScanFilesReadable(
     scanDirectory
 ) {
+    try {
+        fs.chmodSync(scanDirectory, 0o755);
+    } catch {
+        // The scanner needs directory traversal even when files are individually readable.
+    }
+
     const stack = [
         scanDirectory,
     ];
@@ -384,11 +391,20 @@ function buildScannerCommand(
     return [
         'set -u',
 
+        'export HOME=/tmp',
+        'export XDG_CACHE_HOME=/tmp/.cache',
+        'export XDG_CONFIG_HOME=/tmp/config',
+        'export SEMGREP_LOG_FILE=/tmp/.semgrep/log.json',
+        'export SEMGREP_SETTINGS_FILE=/tmp/.semgrep/settings.yml',
+        'mkdir -p "$HOME" "$XDG_CACHE_HOME/semgrep" "$XDG_CONFIG_HOME" /tmp/.semgrep',
+        'chmod 700 /tmp/.semgrep',
+
         'echo "[scan] Running Semgrep..." >&2',
 
-        'rm -f /tmp/semgrep.json',
+        'rm -f /tmp/semgrep.json /tmp/semgrep-error.log',
 
-        'semgrep --config auto /workspace --json --no-git-ignore > /tmp/semgrep.json 2>/tmp/semgrep-error.log; printf "%s" "$?" > /tmp/semgrep-exit-code',
+        'find /workspace -type f -print > /tmp/semgrep-targets.txt',
+        'if [ -s /tmp/semgrep-targets.txt ]; then xargs -r semgrep --config /opt/sentinelai/rules/javascript.yml --json --no-git-ignore < /tmp/semgrep-targets.txt > /tmp/semgrep.json 2>/tmp/semgrep-error.log; printf "%s" "$?" > /tmp/semgrep-exit-code; else printf \'{"version":"1.0","results":[],"errors":[],"paths":{"scanned":[]}}\' > /tmp/semgrep.json; printf "0" > /tmp/semgrep-exit-code; fi',
 
         'if [ ! -s /tmp/semgrep.json ]; then',
         '  printf \'{"results":[]}\' > /tmp/semgrep.json',
@@ -683,26 +699,28 @@ async function runScannersInContainer(
                 Image:
                     SCANNER_IMAGE,
 
-                User:
-                    '0:0',
-
                 Entrypoint:
                     [],
 
                 Cmd: [
                     'sh',
                     '-c',
-                    buildScannerCommand(
-                        files.length
-                    ),
+                    buildScannerCommand(files.length),
                 ],
 
                 WorkingDir:
                     '/workspace',
 
                 HostConfig: {
+                    UsernsMode: 'private',
+                    User: '10001:10001',
+                    ReadonlyRootfs: true,
+                    Tmpfs: {
+                        '/tmp': 'rw,noexec,nosuid,size=64m,uid=10001,gid=10001,mode=1777',
+                    },
                     Binds: [
                         `${scanDirectory}:/workspace:ro`,
+                        `${path.resolve(__dirname, 'scanner/rules/javascript.yml')}:/opt/sentinelai/rules/javascript.yml:ro`,
                     ],
 
                     Memory:
@@ -1455,6 +1473,13 @@ async function runStaticAnalysis(
         throw error;
     }
 
+    const coverage = raw.coverage || { status: 'unknown', reason: 'Scanner result did not include tool execution coverage.' };
+    if (coverage.status !== 'complete') {
+        if (typeof onEvent === 'function') {
+            try { onEvent({ stage: 'static', status: 'failed', description: 'Static analysis is incomplete; one or more scanners failed or did not report execution.' }); } catch {}
+        }
+    }
+
     const semgrepFindings =
         normalizeSemgrepFindings(
             raw.semgrep ||
@@ -1488,7 +1513,7 @@ async function runStaticAnalysis(
     Object.defineProperty(enrichedFindings, 'coverage', {
         enumerable: false,
         value: {
-            ...(raw.coverage || { status: 'unknown', reason: 'Scanner result did not include tool execution coverage.' }),
+            ...coverage,
             filesScanned: raw.filesScanned,
             filesSubmitted: filteredFiles.length,
         },
